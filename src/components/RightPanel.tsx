@@ -14,6 +14,7 @@ type RightPanelProps = {
   typewriterMode: boolean
   onTypewriterModeChange: (enabled: boolean) => void
   onReadingWrapCharsChange: (value: number) => void
+  onEditorFontSizeChange: (value: number) => void
   onExportHeadingsChange: (enabled: boolean) => void
   onRenameCharacter: (currentName: string, nextName: string) => boolean
   onUpdateCharacter: (
@@ -61,7 +62,8 @@ const LABELS = {
   export: "导出",
   about: "关于",
   typewriterMode: "打字机模式",
-  readingWrap: "每行字数"
+  readingWrap: "每行字数",
+  editorFontSize: "文字大小"
 }
 
 function Section({ title, open, onToggle, children }: SectionProps) {
@@ -86,6 +88,7 @@ export function RightPanel({
   typewriterMode,
   onTypewriterModeChange,
   onReadingWrapCharsChange,
+  onEditorFontSizeChange,
   onExportHeadingsChange,
   onRenameCharacter,
   onUpdateCharacter,
@@ -114,6 +117,9 @@ export function RightPanel({
   const [readingWrapInput, setReadingWrapInput] = useState(
     String(project.settings.readingWrapChars ?? 32)
   )
+  const [editorFontSizeInput, setEditorFontSizeInput] = useState(
+    String(project.settings.editorFontSize ?? 16)
+  )
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     save: true,
     characters: true,
@@ -127,6 +133,10 @@ export function RightPanel({
     setReadingWrapInput(String(project.settings.readingWrapChars ?? 32))
   }, [project.settings.readingWrapChars])
 
+  useEffect(() => {
+    setEditorFontSizeInput(String(project.settings.editorFontSize ?? 16))
+  }, [project.settings.editorFontSize])
+
   const commitReadingWrapInput = () => {
     const trimmedValue = readingWrapInput.trim()
 
@@ -136,6 +146,17 @@ export function RightPanel({
     }
 
     onReadingWrapCharsChange(Number(trimmedValue))
+  }
+
+  const commitEditorFontSizeInput = () => {
+    const trimmedValue = editorFontSizeInput.trim()
+
+    if (trimmedValue === "") {
+      setEditorFontSizeInput(String(project.settings.editorFontSize ?? 16))
+      return
+    }
+
+    onEditorFontSizeChange(Number(trimmedValue))
   }
 
   const toggleSection = (section: SectionKey) => {
@@ -189,23 +210,49 @@ export function RightPanel({
 
         <label className="panel-field">
           <span className="panel-field-label">{LABELS.readingWrap}</span>
-          <input
-            className="reading-wrap-input"
-            type="number"
-            min={16}
-            max={60}
-            step={1}
-            value={readingWrapInput}
-            onChange={(event) => setReadingWrapInput(event.target.value)}
-            onBlur={commitReadingWrapInput}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault()
-                commitReadingWrapInput()
-                event.currentTarget.blur()
-              }
-            }}
-          />
+          <div className="panel-inline-control">
+            <input
+              className="reading-wrap-input"
+              type="number"
+              min={16}
+              max={60}
+              step={1}
+              value={readingWrapInput}
+              onChange={(event) => setReadingWrapInput(event.target.value)}
+              onBlur={commitReadingWrapInput}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  commitReadingWrapInput()
+                  event.currentTarget.blur()
+                }
+              }}
+            />
+          </div>
+        </label>
+
+        <label className="panel-field">
+          <span className="panel-field-label">{LABELS.editorFontSize}</span>
+          <div className="panel-inline-control">
+            <input
+              className="reading-wrap-input"
+              type="number"
+              min={11}
+              max={22}
+              step={1}
+              value={editorFontSizeInput}
+              onChange={(event) => setEditorFontSizeInput(event.target.value)}
+              onBlur={commitEditorFontSizeInput}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  commitEditorFontSizeInput()
+                  event.currentTarget.blur()
+                }
+              }}
+            />
+            <span className="panel-inline-suffix">px</span>
+          </div>
         </label>
 
         <StatsPanel project={project} />

@@ -12,7 +12,11 @@ import {
   pasteClipboardLines,
   snapshotSelectedLines
 } from "./utils/lineOperations"
-import { clampReadingWrapChars, migrateProject } from "./utils/projectMigration"
+import {
+  clampEditorFontSize,
+  clampReadingWrapChars,
+  migrateProject
+} from "./utils/projectMigration"
 import {
   clearLocalProject,
   loadProjectFromLocal,
@@ -52,7 +56,8 @@ function createBlankProject(): VNProject {
     settings: {
       exportHeadings: true,
       indent: "",
-      readingWrapChars: 32
+      readingWrapChars: 32,
+      editorFontSize: 16
     },
     meta: {
       appName: APP_NAME,
@@ -918,6 +923,16 @@ export default function App() {
     }))
   }
 
+  const handleEditorFontSizeChange = (value: number) => {
+    commitProjectUpdate((currentProject) => ({
+      ...currentProject,
+      settings: {
+        ...currentProject.settings,
+        editorFontSize: clampEditorFontSize(value)
+      }
+    }))
+  }
+
   const handleExportHeadingsChange = (enabled: boolean) => {
     commitProjectUpdate((currentProject) => ({
       ...currentProject,
@@ -1297,6 +1312,7 @@ export default function App() {
         lines={project.lines}
         characters={project.characters}
         readingWrapChars={project.settings.readingWrapChars}
+        editorFontSize={project.settings.editorFontSize}
         selectionMode={selectionMode}
         layoutVersion={layoutVersion}
         selectedLineIds={selectedLineIds}
@@ -1343,6 +1359,7 @@ export default function App() {
         searchInputRef={searchInputRef}
         onTypewriterModeChange={setTypewriterMode}
         onReadingWrapCharsChange={handleReadingWrapCharsChange}
+        onEditorFontSizeChange={handleEditorFontSizeChange}
         onExportHeadingsChange={handleExportHeadingsChange}
         onRenameCharacter={handleRenameCharacter}
         onUpdateCharacter={handleUpdateCharacter}

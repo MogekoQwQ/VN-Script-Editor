@@ -21,7 +21,8 @@ type LegacyProject = Partial<Omit<VNProject, "characters" | "lines" | "settings"
 const defaultSettings: ExportSettings = {
   exportHeadings: true,
   indent: "",
-  readingWrapChars: 32
+  readingWrapChars: 32,
+  editorFontSize: 16
 }
 
 function normalizeProjectMeta(meta: Partial<ProjectMeta> | undefined) {
@@ -39,6 +40,14 @@ export function clampReadingWrapChars(value: number) {
   }
 
   return Math.min(60, Math.max(16, Math.round(value)))
+}
+
+export function clampEditorFontSize(value: number) {
+  if (Number.isNaN(value)) {
+    return 16
+  }
+
+  return Math.min(22, Math.max(11, Math.round(value)))
 }
 
 export function normalizeCharacterProfile(value: LegacyCharacterValue): CharacterProfile {
@@ -93,6 +102,9 @@ export function migrateProject(project: LegacyProject): VNProject {
       ...project.settings,
       readingWrapChars: clampReadingWrapChars(
         Number(project.settings?.readingWrapChars ?? defaultSettings.readingWrapChars)
+      ),
+      editorFontSize: clampEditorFontSize(
+        Number(project.settings?.editorFontSize ?? defaultSettings.editorFontSize)
       )
     },
     meta: normalizeProjectMeta(project.meta)

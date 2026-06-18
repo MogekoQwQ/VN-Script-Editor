@@ -137,7 +137,8 @@ export const defaultProject: VNProject = {
   settings: {
     exportHeadings: true,
     indent: "",
-    readingWrapChars: 32
+    readingWrapChars: 32,
+    editorFontSize: 16
   },
   meta: {
     appName: APP_NAME,
