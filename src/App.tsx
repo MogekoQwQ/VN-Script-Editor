@@ -3,6 +3,7 @@ import { APP_NAME, APP_VERSION } from "./constants/app"
 import { Editor, type FocusField, type FocusRequest, type ScrollRequest } from "./components/Editor"
 import { Outline } from "./components/Outline"
 import { RightPanel } from "./components/RightPanel"
+import type { PlainTextInsertMode } from "./components/PlainTextInsertPanel"
 import { defaultProject } from "./data/defaultProject"
 import type { CharacterMap, CharacterProfile, ScriptLine, VNProject } from "./types"
 import { areProjectsEqual, cloneProject, pushHistorySnapshot } from "./utils/history"
@@ -24,8 +25,11 @@ import {
 } from "./utils/projectStorage"
 import { validateProjectLike } from "./utils/projectValidation"
 import { findMatches, type SearchMatch } from "./utils/search"
-import { DEFAULT_CHARACTER_COLOR } from "./utils/colors"
-import { ensureCharacterProfile, getActiveSpeakers } from "./utils/characters"
+import {
+  createDefaultCharacterProfile,
+  ensureCharacterProfile,
+  getActiveSpeakers
+} from "./utils/characters"
 import { isRoleSpeaker } from "./utils/lineTypes"
 
 type SaveStatus = "idle" | "saving" | "saved" | "error"
@@ -540,7 +544,10 @@ export default function App() {
       }
 
       const normalizedSpeaker = targetLine.speaker.trim()
-      const nextCharacters = ensureCharacterProfile(currentProject.characters, normalizedSpeaker)
+      const nextCharacters = ensureCharacterProfile(
+        currentProject.characters,
+        normalizedSpeaker
+      )
       const needsSpeakerNormalization = targetLine.speaker !== normalizedSpeaker
 
       if (!needsSpeakerNormalization && nextCharacters === currentProject.characters) {
@@ -888,10 +895,8 @@ export default function App() {
     mode: "live" | "commit" = "live"
   ) => {
     const applyCharacterPatch = (currentProject: VNProject) => {
-      const currentProfile = currentProject.characters[displayName] ?? {
-        id: displayName,
-        color: DEFAULT_CHARACTER_COLOR
-      }
+      const currentProfile =
+        currentProject.characters[displayName] ?? createDefaultCharacterProfile(displayName)
 
       return {
         ...currentProject,
@@ -953,6 +958,78 @@ export default function App() {
     )
     setSaveStatus("saved")
     setSaveStatusText("项目文件已导出")
+  }
+
+const handleInsertPlainText = ({
+    lines: importedLines,
+    characterIdHints,
+    insertMode
+  }: {
+    lines: ScriptLine[]
+    characterIdHints: Record<string, string>
+    insertMode: PlainTextInsertMode
+  }) => {
+
+    if (importedLines.length === 0) {
+      return false
+    }
+
+    if (
+      insertMode === "replace-all" &&
+      !window.confirm("这会替换当前全部脚本内容。请确认已经导出项目文件。确定继续吗？")
+    ) {
+      return false
+    }
+
+    setSelectionMode(false)
+    clearSelection()
+    window.requestAnimationFrame(() => {
+      setLayoutVersion((currentVersion) => currentVersion + 1)
+    })
+
+    commitProjectUpdate((currentProject) => {
+      const anchorLineId = activeLineIdRef.current ?? lastFocusedLineIdRef.current ?? null
+      let nextLines: ScriptLine[]
+
+      if (insertMode === "replace-all") {
+        nextLines = [...importedLines]
+      } else if (insertMode === "append") {
+        nextLines = [...currentProject.lines, ...importedLines]
+      } else {
+        const anchorIndex = anchorLineId
+          ? currentProject.lines.findIndex((line) => line.id === anchorLineId)
+          : -1
+        const insertionIndex = anchorIndex >= 0 ? anchorIndex + 1 : currentProject.lines.length
+
+        nextLines = [...currentProject.lines]
+        nextLines.splice(insertionIndex, 0, ...importedLines)
+      }
+
+      const nextCharacters = importedLines.reduce((characters, line) => {
+        const preferredId = characterIdHints[line.speaker]
+        return ensureCharacterProfile(characters, line.speaker, preferredId)
+      }, currentProject.characters)
+
+      const firstImportedLineId = importedLines[0]?.id
+
+      if (firstImportedLineId) {
+        setActiveLineId(firstImportedLineId)
+        setLastFocusedLineId(firstImportedLineId)
+        requestScroll(firstImportedLineId)
+        requestFocus(firstImportedLineId, "speaker")
+      }
+
+      setSaveStatus("saving")
+      setSaveStatusText(`已从纯文本插入 ${importedLines.length} 行`)
+
+      return {
+        ...currentProject,
+        characters: nextCharacters,
+        lines: nextLines
+      }
+    })
+
+    return true
   }
 
   const handleImportProjectFile = async (file: File) => {
@@ -1367,6 +1444,7 @@ export default function App() {
         onEndCharacterEdit={finalizePendingEdit}
         onExportProjectFile={handleExportProjectFile}
         onImportProjectFile={handleImportProjectFile}
+        onInsertPlainText={handleInsertPlainText}
         onCreateBlankProject={handleCreateBlankProject}
         onResetToDefaultProject={handleResetToDefaultProject}
         onClearLocalProject={handleClearLocalProject}

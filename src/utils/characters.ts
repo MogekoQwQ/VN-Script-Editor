@@ -2,14 +2,36 @@ import type { CharacterMap, CharacterProfile, VNProject } from "../types"
 import { DEFAULT_CHARACTER_COLOR } from "./colors"
 import { isRoleSpeaker, normalizeSpeaker } from "./lineTypes"
 
-export function getCharacterProfile(project: VNProject, speaker: string): CharacterProfile | undefined {
+export function quoteRenpySpeakerName(name: string): string {
+  const normalizedName = normalizeSpeaker(name)
+  return `"${normalizedName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+}
+
+export function createDefaultCharacterProfile(
+  displayName: string,
+  preferredId?: string
+): CharacterProfile {
+  const normalizedName = normalizeSpeaker(displayName)
+  const normalizedPreferredId = typeof preferredId === "string" ? preferredId.trim() : ""
+
+  return {
+    id: normalizedPreferredId || quoteRenpySpeakerName(normalizedName),
+    color: DEFAULT_CHARACTER_COLOR
+  }
+}
+
+export function getCharacterProfile(
+  project: VNProject,
+  speaker: string
+): CharacterProfile | undefined {
   const normalizedSpeaker = normalizeSpeaker(speaker)
   return project.characters[normalizedSpeaker]
 }
 
 export function ensureCharacterProfile(
   characters: CharacterMap,
-  speaker: string
+  speaker: string,
+  preferredId?: string
 ): CharacterMap {
   const normalizedSpeaker = normalizeSpeaker(speaker)
 
@@ -19,10 +41,7 @@ export function ensureCharacterProfile(
 
   return {
     ...characters,
-    [normalizedSpeaker]: {
-      id: normalizedSpeaker,
-      color: DEFAULT_CHARACTER_COLOR
-    }
+    [normalizedSpeaker]: createDefaultCharacterProfile(normalizedSpeaker, preferredId)
   }
 }
 

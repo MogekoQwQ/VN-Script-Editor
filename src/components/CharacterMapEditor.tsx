@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { CharacterMap, CharacterProfile } from "../types"
-import { DEFAULT_CHARACTER_COLOR } from "../utils/colors"
+import { createDefaultCharacterProfile } from "../utils/characters"
 import { ColorPopover } from "./ColorPopover"
 
 type CharacterMapEditorProps = {
@@ -127,12 +127,7 @@ export function CharacterMapEditor({
           <CharacterRow
             key={displayName}
             displayName={displayName}
-            profile={
-              characters[displayName] ?? {
-                id: displayName,
-                color: DEFAULT_CHARACTER_COLOR
-              }
-            }
+            profile={characters[displayName] ?? createDefaultCharacterProfile(displayName)}
             onRenameCharacter={onRenameCharacter}
             onUpdateCharacter={onUpdateCharacter}
             onBeginEdit={onBeginEdit}

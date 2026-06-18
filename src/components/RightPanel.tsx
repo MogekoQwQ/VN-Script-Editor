@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode, type Ref } from "react"
-import type { CharacterMap, CharacterProfile, VNProject } from "../types"
+import type { CharacterMap, CharacterProfile, ScriptLine, VNProject } from "../types"
 import { AboutPanel } from "./AboutPanel"
 import { CharacterMapEditor } from "./CharacterMapEditor"
 import { ExportPanel } from "./ExportPanel"
+import { PlainTextInsertPanel, type PlainTextInsertMode } from "./PlainTextInsertPanel"
 import { SavePanel } from "./SavePanel"
 import { SearchReplacePanel } from "./SearchReplacePanel"
 import { StatsPanel } from "./StatsPanel"
@@ -33,6 +34,11 @@ type RightPanelProps = {
   searchInputRef?: Ref<HTMLInputElement>
   onExportProjectFile: () => void
   onImportProjectFile: (file: File) => void | Promise<void>
+  onInsertPlainText: (payload: {
+    lines: ScriptLine[]
+    characterIdHints: Record<string, string>
+    insertMode: PlainTextInsertMode
+  }) => boolean
   onCreateBlankProject: () => void
   onResetToDefaultProject: () => void
   onClearLocalProject: () => void
@@ -45,7 +51,14 @@ type RightPanelProps = {
   onSearchFocusChange: (focused: boolean) => void
 }
 
-type SectionKey = "save" | "characters" | "settings" | "search" | "export" | "about"
+type SectionKey =
+  | "save"
+  | "characters"
+  | "settings"
+  | "plainTextInsert"
+  | "search"
+  | "export"
+  | "about"
 
 type SectionProps = {
   title: string
@@ -58,6 +71,7 @@ const LABELS = {
   save: "保存",
   characters: "角色映射",
   settings: "写作设置",
+  plainTextInsert: "从纯文本插入",
   search: "查找替换",
   export: "导出",
   about: "关于",
@@ -103,6 +117,7 @@ export function RightPanel({
   searchInputRef,
   onExportProjectFile,
   onImportProjectFile,
+  onInsertPlainText,
   onCreateBlankProject,
   onResetToDefaultProject,
   onClearLocalProject,
@@ -124,6 +139,7 @@ export function RightPanel({
     save: true,
     characters: true,
     settings: true,
+    plainTextInsert: false,
     search: false,
     export: false,
     about: false
@@ -256,6 +272,14 @@ export function RightPanel({
         </label>
 
         <StatsPanel project={project} />
+      </Section>
+
+      <Section
+        title={LABELS.plainTextInsert}
+        open={openSections.plainTextInsert}
+        onToggle={() => toggleSection("plainTextInsert")}
+      >
+        <PlainTextInsertPanel onInsert={onInsertPlainText} />
       </Section>
 
       <Section

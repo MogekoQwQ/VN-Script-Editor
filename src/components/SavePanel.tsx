@@ -13,6 +13,7 @@ const TEXT = {
   status: "\u4fdd\u5b58\u72b6\u6001",
   export: "\u5bfc\u51fa\u9879\u76ee\u6587\u4ef6",
   import: "\u5bfc\u5165\u9879\u76ee\u6587\u4ef6",
+  insertPlainText: "从纯文本插入",
   blank: "\u65b0\u5efa\u7a7a\u767d\u9879\u76ee",
   reset: "\u91cd\u7f6e\u4e3a\u793a\u4f8b\u9879\u76ee",
   clear: "\u6e05\u9664\u672c\u5730\u81ea\u52a8\u4fdd\u5b58"
@@ -55,14 +56,14 @@ export function SavePanel({
         <button type="button" onClick={() => fileInputRef.current?.click()}>
           {TEXT.import}
         </button>
-        <button type="button" onClick={onCreateBlankProject}>
-          {TEXT.blank}
+        <button type="button" onClick={onClearLocalProject}>
+          {TEXT.clear}
         </button>
         <button type="button" onClick={onResetToDefaultProject}>
           {TEXT.reset}
         </button>
-        <button type="button" onClick={onClearLocalProject}>
-          {TEXT.clear}
+        <button type="button" onClick={onCreateBlankProject}>
+          {TEXT.blank}
         </button>
       </div>
 

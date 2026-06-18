@@ -1,5 +1,6 @@
 import { APP_NAME, APP_VERSION } from "../constants/app"
 import { DEFAULT_CHARACTER_COLOR } from "./colors"
+import { createDefaultCharacterProfile } from "./characters"
 import type {
   CharacterMap,
   CharacterProfile,
@@ -50,7 +51,10 @@ export function clampEditorFontSize(value: number) {
   return Math.min(22, Math.max(11, Math.round(value)))
 }
 
-export function normalizeCharacterProfile(value: LegacyCharacterValue): CharacterProfile {
+export function normalizeCharacterProfile(
+  displayName: string,
+  value: LegacyCharacterValue
+): CharacterProfile {
   if (typeof value === "string") {
     return {
       id: value,
@@ -58,8 +62,10 @@ export function normalizeCharacterProfile(value: LegacyCharacterValue): Characte
     }
   }
 
+  const fallbackProfile = createDefaultCharacterProfile(displayName)
+
   return {
-    id: typeof value?.id === "string" ? value.id : "",
+    id: typeof value?.id === "string" && value.id.trim() ? value.id : fallbackProfile.id,
     color: typeof value?.color === "string" ? value.color : DEFAULT_CHARACTER_COLOR
   }
 }
@@ -74,7 +80,7 @@ export function normalizeCharacterMap(
   return Object.fromEntries(
     Object.entries(characters).map(([displayName, value]) => [
       displayName,
-      normalizeCharacterProfile(value)
+      normalizeCharacterProfile(displayName, value)
     ])
   )
 }

@@ -769,15 +769,22 @@ code {
 }
 
 .right-panel input[type="text"],
-.right-panel input[type="number"] {
+.right-panel input[type="number"],
+.right-panel select,
+.plain-text-insert-textarea {
   min-width: 0;
-  height: 24px;
-  padding: 0 6px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 5px;
   background: #fff;
   color: #111827;
   font-size: 12px;
+}
+
+.right-panel input[type="text"],
+.right-panel input[type="number"],
+.right-panel select {
+  height: 24px;
+  padding: 0 6px;
   line-height: 24px;
 }
 
@@ -897,6 +904,62 @@ code {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.plain-text-insert-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plain-text-insert-textarea {
+  width: 100%;
+  min-height: 8.5rem;
+  max-height: 11rem;
+  padding: 8px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.plain-text-insert-option {
+  display: grid;
+  gap: 4px;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.plain-text-insert-options {
+  display: grid;
+  gap: 6px;
+}
+
+.plain-text-insert-check {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.plain-text-insert-check input {
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0;
+}
+
+.plain-text-insert-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.72);
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .about-panel {
