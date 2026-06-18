@@ -28,6 +28,7 @@ type EditorProps = {
   lines: ScriptLine[]
   characters: CharacterMap
   readingWrapChars: number
+  editorFontSize: number
   selectionMode: boolean
   layoutVersion: number
   selectedLineIds: string[]
@@ -64,6 +65,7 @@ export function Editor({
   lines,
   characters,
   readingWrapChars,
+  editorFontSize,
   selectionMode,
   layoutVersion,
   selectedLineIds,
@@ -207,7 +209,8 @@ export function Editor({
           className="editor-list editor-body"
           style={
             {
-              "--reading-wrap-width": `${readingWrapChars}em`
+              "--reading-wrap-width": `${readingWrapChars}em`,
+              "--editor-font-size": `${editorFontSize}px`
             } as CSSProperties
           }
         >
@@ -226,6 +229,7 @@ export function Editor({
                 speakerColor={speakerColor}
                 speakerOptions={speakerOptions}
                 readingWrapChars={readingWrapChars}
+                editorFontSize={editorFontSize}
                 selectionMode={selectionMode}
                 layoutVersion={layoutVersion}
                 onSpeakerChange={onSpeakerChange}

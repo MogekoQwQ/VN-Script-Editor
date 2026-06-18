@@ -17,6 +17,7 @@ export type ExportSettings = {
   exportHeadings: boolean
   indent: string
   readingWrapChars: number
+  editorFontSize: number
 }
 
 export type ProjectMeta = {

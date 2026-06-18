@@ -21,6 +21,7 @@ type LineEditorProps = {
   speakerColor?: string
   speakerOptions: SpeakerOption[]
   readingWrapChars: number
+  editorFontSize: number
   selectionMode: boolean
   layoutVersion: number
   onSpeakerChange: (lineId: string, speaker: string) => void
@@ -106,6 +107,7 @@ function LineEditorComponent({
   speakerColor,
   speakerOptions,
   readingWrapChars,
+  editorFontSize,
   selectionMode,
   layoutVersion,
   onSpeakerChange,
@@ -155,7 +157,15 @@ function LineEditorComponent({
 
   useLayoutEffect(() => {
     resizeTextarea(contentElementRef.current)
-  }, [line.content, selectionMode, readingWrapChars, isActive, isSelected, layoutVersion])
+  }, [
+    line.content,
+    selectionMode,
+    readingWrapChars,
+    editorFontSize,
+    isActive,
+    isSelected,
+    layoutVersion
+  ])
 
   useLayoutEffect(() => {
     const element = contentElementRef.current
@@ -431,6 +441,7 @@ function areLineEditorPropsEqual(previousProps: LineEditorProps, nextProps: Line
     previousProps.speakerColor === nextProps.speakerColor &&
     previousProps.speakerOptions === nextProps.speakerOptions &&
     previousProps.readingWrapChars === nextProps.readingWrapChars &&
+    previousProps.editorFontSize === nextProps.editorFontSize &&
     previousProps.selectionMode === nextProps.selectionMode &&
     previousProps.layoutVersion === nextProps.layoutVersion &&
     previousProps.isActive === nextProps.isActive &&
