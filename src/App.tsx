@@ -608,7 +608,15 @@ export default function App() {
   const removeLineIds = (lineIdsToRemove: string[]) => {
     commitProjectUpdate((currentProject) => {
       const lineIdSet = new Set(lineIdsToRemove)
+      const firstRemovedIndex = currentProject.lines.findIndex((line) => lineIdSet.has(line.id))
       const remainingLines = currentProject.lines.filter((line) => !lineIdSet.has(line.id))
+
+      if (selectionModeRef.current) {
+        setSelectionMode(false)
+        window.requestAnimationFrame(() => {
+          setLayoutVersion((currentVersion) => currentVersion + 1)
+        })
+      }
 
       clearSelection()
 
@@ -622,7 +630,11 @@ export default function App() {
         }
       }
 
-      const fallbackLine = remainingLines[0]
+      const targetIndex =
+        firstRemovedIndex < 0
+          ? 0
+          : Math.min(firstRemovedIndex, remainingLines.length - 1)
+      const fallbackLine = remainingLines[targetIndex]
 
       if (fallbackLine) {
         requestFocus(fallbackLine.id, "speaker")

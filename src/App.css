@@ -574,19 +574,29 @@ code {
 }
 
 .line-note .line-speaker-input,
-.line-note .line-content-textarea {
+.line-note .line-content-textarea,
+.line-note .line-speaker-display,
+.line-note .line-content-display,
+.line-note .line-speaker-cell,
+.line-note .line-content-cell {
   color: #7a7f86;
-}
-
-.line-narration {
-  margin-bottom: 10px;
+  font: inherit;
+  line-height: inherit;
 }
 
 .line-narration .line-content-textarea {
   color: #374151;
 }
 
+.line-narration .line-content-display {
+  color: #374151;
+}
+
 .line-dialogue .line-content-textarea {
+  color: #111827;
+}
+
+.line-dialogue .line-content-display {
   color: #111827;
 }
 
