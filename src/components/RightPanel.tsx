@@ -23,6 +23,7 @@ type RightPanelProps = {
     patch: Partial<CharacterProfile>,
     mode?: "live" | "commit"
   ) => void
+  onReorderCharacters: (nextOrder: string[]) => void
   onBeginCharacterEdit: () => void
   onEndCharacterEdit: () => void
   saveStatusText: string
@@ -106,6 +107,7 @@ export function RightPanel({
   onExportHeadingsChange,
   onRenameCharacter,
   onUpdateCharacter,
+  onReorderCharacters,
   onBeginCharacterEdit,
   onEndCharacterEdit,
   saveStatusText,
@@ -205,6 +207,7 @@ export function RightPanel({
           characters={characters}
           onRenameCharacter={onRenameCharacter}
           onUpdateCharacter={onUpdateCharacter}
+          onReorderCharacters={onReorderCharacters}
           onBeginEdit={onBeginCharacterEdit}
           onEndEdit={onEndCharacterEdit}
         />

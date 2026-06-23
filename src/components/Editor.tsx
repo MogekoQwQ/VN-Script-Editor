@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type CSSProperties } from "react"
 import type { CharacterMap, ScriptLine } from "../types"
 import { isCharacterSpeakerName } from "../utils/lineTypes"
 import { DEFAULT_CHARACTER_COLOR, resolveCharacterColor } from "../utils/colors"
+import { buildSpeakerSuggestions } from "../utils/characters"
 import { BatchToolbar } from "./BatchToolbar"
 import { LineEditor } from "./LineEditor"
 
@@ -106,12 +107,8 @@ export function Editor({
   const canMoveSelectionDown =
     hasSelection && !selectedLineIdSet.has(lines[lines.length - 1]?.id ?? "")
   const speakerOptions = useMemo(
-    () =>
-      Object.entries(characters).map(([displayName, profile]) => ({
-        displayName,
-        id: profile.id
-      })),
-    [characters]
+    () => buildSpeakerSuggestions(lines, characters, ""),
+    [lines, characters]
   )
 
   useEffect(() => {

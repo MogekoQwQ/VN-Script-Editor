@@ -1,14 +1,10 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type Ref } from "react"
 import type { ScriptLine } from "../types"
+import type { SpeakerSuggestion } from "../utils/characters"
 import { getHeadingLevel, isNarrationSpeaker, isNoteSpeaker } from "../utils/lineTypes"
 import type { FocusField } from "./Editor"
 import { LineActionMenu } from "./LineActionMenu"
 import { SpeakerAutocomplete } from "./SpeakerAutocomplete"
-
-type SpeakerOption = {
-  displayName: string
-  id: string
-}
 
 type SelectionModifiers = {
   ctrlKey: boolean
@@ -19,7 +15,7 @@ type SelectionModifiers = {
 type LineEditorProps = {
   line: ScriptLine
   speakerColor?: string
-  speakerOptions: SpeakerOption[]
+  speakerOptions: SpeakerSuggestion[]
   readingWrapChars: number
   editorFontSize: number
   selectionMode: boolean
@@ -148,11 +144,9 @@ function LineEditorComponent({
       return []
     }
 
-    return speakerOptions.filter((option) => {
-      const displayName = normalizeSearchValue(option.displayName)
-      const exportId = option.id.toLowerCase()
-      return displayName.includes(query) || exportId.includes(query)
-    })
+    return speakerOptions.filter((option) =>
+      option.matchValues.some((value) => value.includes(query))
+    )
   }, [line.speaker, speakerOptions])
 
   useLayoutEffect(() => {

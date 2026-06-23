@@ -28,7 +28,9 @@ import { findMatches, type SearchMatch } from "./utils/search"
 import {
   createDefaultCharacterProfile,
   ensureCharacterProfile,
-  getActiveSpeakers
+  getActiveSpeakers,
+  renameCharacterOrderEntry,
+  resolveCharacterDisplayOrder
 } from "./utils/characters"
 import { isRoleSpeaker } from "./utils/lineTypes"
 
@@ -61,7 +63,8 @@ function createBlankProject(): VNProject {
       exportHeadings: true,
       indent: "",
       readingWrapChars: 32,
-      editorFontSize: 16
+      editorFontSize: 16,
+      characterOrder: []
     },
     meta: {
       appName: APP_NAME,
@@ -247,6 +250,10 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const activeSpeakers = useMemo(() => getActiveSpeakers(project.lines), [project.lines])
+  const orderedActiveSpeakers = useMemo(
+    () => resolveCharacterDisplayOrder(activeSpeakers, project.settings.characterOrder),
+    [activeSpeakers, project.settings.characterOrder]
+  )
   const lineIndexMap = useMemo(
     () => new Map(project.lines.map((line, index) => [line.id, index])),
     [project.lines]
@@ -892,6 +899,14 @@ export default function App() {
       return {
         ...currentProject,
         characters: reorderedCharacters,
+        settings: {
+          ...currentProject.settings,
+          characterOrder: renameCharacterOrderEntry(
+            currentProject.settings.characterOrder,
+            currentName,
+            normalizedName
+          )
+        },
         lines: currentProject.lines.map((line) =>
           line.speaker.trim() === currentName ? { ...line, speaker: normalizedName } : line
         )
@@ -928,6 +943,16 @@ export default function App() {
     }
 
     updateProjectLive(applyCharacterPatch)
+  }
+
+  const handleReorderCharacters = (nextOrder: string[]) => {
+    updateProjectLive((currentProject) => ({
+      ...currentProject,
+      settings: {
+        ...currentProject.settings,
+        characterOrder: [...nextOrder]
+      }
+    }))
   }
 
   const handleReadingWrapCharsChange = (value: number) => {
@@ -1436,7 +1461,7 @@ const handleInsertPlainText = ({
 
       <RightPanel
         project={project}
-        activeSpeakers={activeSpeakers}
+        activeSpeakers={orderedActiveSpeakers}
         characters={project.characters}
         typewriterMode={typewriterMode}
         saveStatusText={saveStatusText}
@@ -1452,6 +1477,7 @@ const handleInsertPlainText = ({
         onExportHeadingsChange={handleExportHeadingsChange}
         onRenameCharacter={handleRenameCharacter}
         onUpdateCharacter={handleUpdateCharacter}
+        onReorderCharacters={handleReorderCharacters}
         onBeginCharacterEdit={beginProjectEdit}
         onEndCharacterEdit={finalizePendingEdit}
         onExportProjectFile={handleExportProjectFile}

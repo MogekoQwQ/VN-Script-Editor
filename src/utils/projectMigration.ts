@@ -23,7 +23,8 @@ const defaultSettings: ExportSettings = {
   exportHeadings: true,
   indent: "",
   readingWrapChars: 32,
-  editorFontSize: 16
+  editorFontSize: 16,
+  characterOrder: []
 }
 
 function normalizeProjectMeta(meta: Partial<ProjectMeta> | undefined) {
@@ -97,6 +98,14 @@ function normalizeLines(lines: ScriptLine[] | undefined) {
   }))
 }
 
+function normalizeCharacterOrder(characterOrder: unknown) {
+  if (!Array.isArray(characterOrder)) {
+    return []
+  }
+
+  return characterOrder.filter((value): value is string => typeof value === "string")
+}
+
 export function migrateProject(project: LegacyProject): VNProject {
   return {
     version: typeof project?.version === "number" ? project.version : 1,
@@ -111,7 +120,8 @@ export function migrateProject(project: LegacyProject): VNProject {
       ),
       editorFontSize: clampEditorFontSize(
         Number(project.settings?.editorFontSize ?? defaultSettings.editorFontSize)
-      )
+      ),
+      characterOrder: normalizeCharacterOrder(project.settings?.characterOrder)
     },
     meta: normalizeProjectMeta(project.meta)
   }

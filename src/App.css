@@ -844,7 +844,7 @@ code {
 .character-map-header,
 .character-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr) 2.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr) 2rem 1.25rem;
   gap: 6px;
   align-items: center;
   width: 100%;
@@ -857,7 +857,9 @@ code {
 }
 
 .character-map-header > :nth-child(3),
-.character-row > :nth-child(3) {
+.character-row > :nth-child(3),
+.character-map-header > :nth-child(4),
+.character-row > :nth-child(4) {
   justify-self: center;
   text-align: center;
 }
@@ -871,6 +873,16 @@ code {
   min-height: 24px;
 }
 
+.character-row.is-dragging {
+  opacity: 0.45;
+}
+
+.character-row.is-drag-over {
+  background: rgba(80, 120, 220, 0.08);
+  box-shadow: inset 2px 0 0 rgba(80, 120, 220, 0.32);
+  border-radius: 6px;
+}
+
 .character-row input {
   width: 100%;
   min-width: 0;
@@ -881,6 +893,32 @@ code {
   height: 16px;
   border-radius: 999px;
   justify-self: center;
+}
+
+.character-drag-handle {
+  width: 1.25rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  cursor: grab;
+  user-select: none;
+  opacity: 0.45;
+  line-height: 1;
+}
+
+.character-drag-handle:hover {
+  opacity: 0.9;
+}
+
+.character-drag-handle:active {
+  cursor: grabbing;
 }
 
 .character-map-empty {
@@ -1188,6 +1226,6 @@ code {
 
   .character-map-header,
   .character-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr) 2.5rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr) 2rem 1.25rem;
   }
 }

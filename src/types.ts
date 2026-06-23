@@ -18,6 +18,7 @@ export type ExportSettings = {
   indent: string
   readingWrapChars: number
   editorFontSize: number
+  characterOrder?: string[]
 }
 
 export type ProjectMeta = {
