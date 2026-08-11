@@ -1,74 +1,24 @@
 type BatchToolbarProps = {
-  selectionMode: boolean
-  selectedCount: number
-  clipboardCount: number
-  canPaste: boolean
-  canMoveUp: boolean
-  canMoveDown: boolean
+  focusedCount: number
   onCopy: () => void
   onCut: () => void
-  onPaste: () => void
+  onPasteBelow: () => void
   onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  onClear: () => void
-  onExit: () => void
 }
 
-export function BatchToolbar({
-  selectionMode,
-  selectedCount,
-  clipboardCount,
-  canPaste,
-  canMoveUp,
-  canMoveDown,
-  onCopy,
-  onCut,
-  onPaste,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
-  onClear,
-  onExit
-}: BatchToolbarProps) {
-  if (!selectionMode) {
-    return null
-  }
-
-  const hasSelection = selectedCount > 0
+export function BatchToolbar({ focusedCount, onCopy, onCut, onPasteBelow, onDelete }: BatchToolbarProps) {
+  if (focusedCount === 0) return null
 
   return (
-    <div className="batch-toolbar">
+    <div className="batch-toolbar" onPointerDown={(event) => event.preventDefault()}>
       <span>
-        已选中 {selectedCount} 行
-        {clipboardCount > 0 ? ` · 剪贴板 ${clipboardCount} 行` : ""}
+        {focusedCount === 1 ? "\u5f53\u524d\u884c" : `\u5df2\u9009\u4e2d ${focusedCount} \u884c`}
       </span>
-
       <div className="batch-toolbar-actions">
-        <button type="button" onClick={onCopy} disabled={!hasSelection}>
-          复制
-        </button>
-        <button type="button" onClick={onCut} disabled={!hasSelection}>
-          剪切
-        </button>
-        <button type="button" onClick={onPaste} disabled={!canPaste}>
-          粘贴
-        </button>
-        <button type="button" onClick={onDelete} disabled={!hasSelection}>
-          删除
-        </button>
-        <button type="button" onClick={onMoveUp} disabled={!canMoveUp}>
-          上移
-        </button>
-        <button type="button" onClick={onMoveDown} disabled={!canMoveDown}>
-          下移
-        </button>
-        <button type="button" onClick={onClear} disabled={!hasSelection}>
-          清除选择
-        </button>
-        <button type="button" onClick={onExit}>
-          退出选择
-        </button>
+        <button type="button" onClick={onCut}>{"\u526a\u5207"}</button>
+        <button type="button" onClick={onCopy}>{"\u590d\u5236"}</button>
+        <button type="button" onClick={onPasteBelow}>{"\u5728\u4e0b\u65b9\u7c98\u8d34"}</button>
+        <button type="button" onClick={onDelete}>{"\u5220\u9664"}</button>
       </div>
     </div>
   )

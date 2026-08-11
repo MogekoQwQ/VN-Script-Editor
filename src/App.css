@@ -176,10 +176,6 @@ code {
   background: #f5f6f8;
 }
 
-.panel-editor.selection-mode {
-  --selector-column: 1.7rem;
-}
-
 .batch-toolbar {
   display: flex;
   align-items: center;
@@ -221,7 +217,7 @@ code {
 
 .editor-column-labels {
   display: grid;
-  grid-template-columns: var(--selector-column) 8rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--selector-column) 8rem minmax(0, 1fr);
   gap: 16px;
   width: min(100%, 1060px);
   margin: 0 auto;
@@ -234,8 +230,7 @@ code {
   user-select: none;
 }
 
-.editor-select-label,
-.editor-actions-label {
+.editor-select-label {
   text-align: center;
 }
 
@@ -261,7 +256,7 @@ code {
 
 .line-editor {
   display: grid;
-  grid-template-columns: var(--selector-column) 8rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--selector-column) 8rem minmax(0, 1fr);
   column-gap: 0.8rem;
   align-items: start;
   min-height: 1.7rem;
@@ -286,67 +281,63 @@ code {
   border-radius: 8px;
 }
 
-.line-editor.is-search-current:not(.is-selected) {
+.line-editor.is-search-current:not(.is-range-selected) {
   background: rgba(34, 197, 94, 0.08);
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.2);
   border-radius: 8px;
 }
 
-.line-editor.is-selected {
-  background: rgba(80, 120, 220, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(80, 120, 220, 0.2);
+.line-editor.is-range-selected {
+  background: rgba(100, 116, 139, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(100, 116, 139, 0.1);
   border-radius: 8px;
 }
 
-.line-editor.is-active.is-selected {
-  background: rgba(80, 120, 220, 0.18);
+.line-editor.is-active.is-range-selected {
+  background: rgba(100, 116, 139, 0.08);
   box-shadow:
-    inset 3px 0 0 rgba(80, 120, 220, 0.45),
-    inset 0 0 0 1px rgba(80, 120, 220, 0.2);
+    inset 3px 0 0 rgba(100, 116, 139, 0.25),
+    inset 0 0 0 1px rgba(100, 116, 139, 0.1);
 }
 
 .line-editor.is-dimmed {
   opacity: 0.58;
 }
 
-.line-selector {
+.line-gutter {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
+  width: 1.25rem;
   min-height: 1.7rem;
   padding: 0;
   border: 0;
   background: transparent;
   user-select: none;
-  opacity: 0;
-  pointer-events: none;
+  cursor: crosshair;
 }
 
-.panel-editor.selection-mode .line-selector {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.line-selector span {
-  width: 0.8rem;
-  height: 0.8rem;
-  border: 1px solid rgba(148, 163, 184, 0.6);
+.line-gutter::before {
+  width: 2px;
+  height: 1.15rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  background: transparent;
+  content: "";
+  transition: background-color 0.15s ease;
 }
 
-.line-editor:hover .line-selector span,
-.line-selector:focus-visible span {
-  border-color: rgba(100, 116, 139, 0.8);
-  transform: scale(1.04);
+.line-editor:hover .line-gutter::before,
+.line-gutter:focus-visible::before {
+  background: rgba(100, 116, 139, 0.42);
 }
 
-.line-selector.is-selected span {
-  border-color: #5e81b7;
-  background: #5e81b7;
-  box-shadow: inset 0 0 0 2px #f8fbff;
+.panel-editor.is-range-dragging,
+.panel-editor.is-range-dragging .line-gutter {
+  user-select: none;
+}
+
+.panel-editor.is-range-dragging .line-gutter {
+  cursor: grabbing;
 }
 
 .line-speaker-cell {
@@ -463,11 +454,6 @@ code {
   line-height: inherit;
 }
 
-.panel-editor.selection-mode .line-speaker-display,
-.panel-editor.selection-mode .line-content-display {
-  user-select: none;
-}
-
 .line-content-textarea::placeholder {
   color: #a0a8b5;
 }
@@ -515,6 +501,7 @@ code {
 .line-heading-1 {
   margin-top: 1.1rem;
   margin-bottom: 0.35rem;
+  padding-block: 0.9em 0.65em;
 }
 
 .line-heading-1 .line-content-textarea,
@@ -530,6 +517,7 @@ code {
 .line-heading-2 {
   margin-top: 0.75rem;
   margin-bottom: 0.25rem;
+  padding-block: 0.75em 0.5em;
 }
 
 .line-heading-2 .line-content-textarea,
@@ -544,6 +532,7 @@ code {
 .line-heading-3 {
   margin-top: 0.5rem;
   margin-bottom: 0.2rem;
+  padding-block: 0.5em 0.35em;
 }
 
 .line-heading-3 .line-content-textarea,
@@ -558,6 +547,7 @@ code {
 .line-heading-4 {
   margin-top: 0.5rem;
   margin-bottom: 0.2rem;
+  padding-block: 0.35em 0.25em;
 }
 
 .line-heading-4 .line-content-textarea,
@@ -598,88 +588,6 @@ code {
 
 .line-dialogue .line-content-display {
   color: #111827;
-}
-
-.line-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.16s ease;
-}
-
-.line-editor:hover .line-actions,
-.line-editor.is-active .line-actions,
-.line-actions:focus-within {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.line-action-menu,
-.line-action-popup,
-.line-action-trigger {
-  user-select: none;
-}
-
-.line-action-menu {
-  position: relative;
-}
-
-.line-action-trigger {
-  width: 1.8rem;
-  height: 1.8rem;
-  padding: 0;
-  border: 1px solid rgba(203, 213, 225, 0.8);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #64748b;
-}
-
-.line-action-trigger:hover {
-  color: #111827;
-}
-
-.line-action-popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  min-width: 8rem;
-  padding: 6px;
-  border: 1px solid rgba(203, 213, 225, 0.9);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-
-.line-action-popup button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #334155;
-  text-align: left;
-}
-
-.line-action-popup button:hover:not(:disabled) {
-  background: #f8fafc;
-}
-
-.line-action-popup button:disabled {
-  opacity: 0.35;
-}
-
-.line-action-shortcut {
-  color: #94a3b8;
-  font-size: 11px;
-  line-height: 1;
 }
 
 .right-panel,
@@ -979,6 +887,19 @@ code {
 .plain-text-insert-options {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.plain-text-insert-options legend {
+  padding: 0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .plain-text-insert-check {
@@ -1211,17 +1132,9 @@ code {
     gap: 6px;
   }
 
-  .editor-actions-label,
-  .line-actions,
-  .line-content-textarea,
+  .line-content-cell,
   .speaker-autocomplete {
     grid-column: 2;
-  }
-
-  .line-actions {
-    opacity: 1;
-    pointer-events: auto;
-    margin-left: auto;
   }
 
   .character-map-header,

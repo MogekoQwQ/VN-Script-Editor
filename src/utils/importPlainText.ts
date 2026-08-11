@@ -1,19 +1,13 @@
 import type { ScriptLine } from "../types"
-import { createLineId } from "./ids"
 import { quoteRenpySpeakerName } from "./characters"
+import { createLineId } from "./ids"
 
-const MAX_SPEAKER_PREFIX_CHARS = 10
-const TIME_PREFIX_PATTERN = /^\s*\d{1,2}[:：]\d{2}(\s|$|[^\d])/u
-const INVALID_SPEAKER_PUNCTUATION = /[。！？；，、]/u
+export type SpeakerMatchMode = "chinese-colon" | "renpy" | "none"
+export type HashMatchMode = "markdown-heading" | "note-and-internal-heading" | "none"
 
 export type PlainTextPatternOptions = {
-  chineseColon: boolean
-  westernColon: boolean
-  chineseQuote: boolean
-  westernQuote: boolean
-  renpy: boolean
-  heading: boolean
-  note: boolean
+  speakerMatch: SpeakerMatchMode
+  hashMatch: HashMatchMode
   trimLines: boolean
   skipEmptyLines: boolean
 }
@@ -25,42 +19,39 @@ export type PlainTextParseStats = {
   dialogueLines: number
   noteLines: number
   headingLines: number
+  speakerCount: number
+}
+
+export type SpeakerCandidate = {
+  speaker: string
+  count: number
+}
+
+type ParsedLine = {
+  line: ScriptLine
+  originalText: string
+  kind: "narration" | "dialogue" | "note" | "heading"
+  candidateSpeaker?: string
+  characterIdHint?: string
 }
 
 export type PlainTextParseResult = {
   lines: ScriptLine[]
   stats: PlainTextParseStats
   characterIdHints: Record<string, string>
-}
-
-type ParsedLineResult = {
-  line: ScriptLine
-  characterIdHint?: string
-}
-
-type ParsedQuotedString = {
-  value: string
-  endIndex: number
+  speakerCandidates: SpeakerCandidate[]
+  parsedLines: ParsedLine[]
 }
 
 export const DEFAULT_PLAIN_TEXT_OPTIONS: PlainTextPatternOptions = {
-  chineseColon: true,
-  westernColon: false,
-  chineseQuote: true,
-  westernQuote: true,
-  renpy: false,
-  heading: true,
-  note: false,
+  speakerMatch: "chinese-colon",
+  hashMatch: "note-and-internal-heading",
   trimLines: true,
   skipEmptyLines: true
 }
 
 function createScriptLine(speaker: string, content: string): ScriptLine {
-  return {
-    id: createLineId(),
-    speaker,
-    content
-  }
+  return { id: createLineId(), speaker, content }
 }
 
 function normalizeLine(rawLine: string, trimLines: boolean) {
@@ -68,376 +59,169 @@ function normalizeLine(rawLine: string, trimLines: boolean) {
   return trimLines ? line.trim() : line
 }
 
-function stripTrailingQuote(content: string, quote: string) {
-  return content.endsWith(quote) ? content.slice(0, -1).trimEnd() : content
+function isValidCandidateSpeaker(value: string) {
+  return value.length > 0 && value.length <= 30 && !/[\r\n]/.test(value)
 }
 
-function isLikelySpeaker(rawSpeaker: string): boolean {
-  const speaker = rawSpeaker.trim()
-
-  if (!speaker || speaker.length > 30) {
-    return false
-  }
-
-  if (INVALID_SPEAKER_PUNCTUATION.test(speaker)) {
-    return false
-  }
-
-  return /^[\p{L}\p{N}_\-\s]+$/u.test(speaker)
-}
-
-function classifyLine(speaker: string) {
-  if (speaker === "") {
-    return "narration" as const
-  }
-
-  if (speaker === "#") {
-    return "note" as const
-  }
-
-  if (/^#[1-4]$/u.test(speaker)) {
-    return "heading" as const
-  }
-
-  return "dialogue" as const
-}
-
-function buildSpeakerContentLine(
-  rawSpeaker: string,
-  rawContent: string,
-  characterIdHint?: string
-): ParsedLineResult | null {
-  const speaker = rawSpeaker.trim()
-  const content = rawContent.trim()
-
-  if (!isLikelySpeaker(speaker) || content === "") {
-    return null
-  }
-
-  return {
-    line: createScriptLine(speaker, content),
-    characterIdHint
-  }
-}
-
-function tryParseHeading(
-  line: string,
-  options: PlainTextPatternOptions
-): ParsedLineResult | null {
-  if (!options.heading) {
-    return null
-  }
-
-  const explicitMatch = line.match(/^(#([1-4]))(?:\s+|$)(.+)$/u)
-
-  if (explicitMatch) {
-    const content = explicitMatch[3].trim()
-    return content
-      ? {
-          line: createScriptLine(explicitMatch[1], content)
-        }
-      : null
-  }
-
-  const markdownMatch = line.match(/^(#{1,4})(?:\s+|$)(.+)$/u)
-
-  if (!markdownMatch) {
-    return null
-  }
-
-  if (markdownMatch[1].length === 1 && options.note) {
-    return null
-  }
-
-  const content = markdownMatch[2].trim()
-
-  if (!content) {
-    return null
-  }
-
-  return {
-    line: createScriptLine(`#${markdownMatch[1].length}`, content)
-  }
-}
-
-function tryParseNote(line: string, options: PlainTextPatternOptions): ParsedLineResult | null {
-  if (!options.note) {
-    return null
-  }
-
-  const noteMatch = line.match(/^#(?![1-4](?:\s|$))(?:\s+|$)(.+)$/u)
-
-  if (!noteMatch) {
-    return null
-  }
-
-  const content = noteMatch[1].trim()
-  return content
-    ? {
-        line: createScriptLine("#", content)
-      }
-    : null
-}
-
-function isTimeLikeLine(line: string) {
-  return TIME_PREFIX_PATTERN.test(line)
-}
-
-function findPrefixDelimiterIndex(line: string, delimiter: string) {
-  const trimmedStart = line.trimStart()
-  const delimiterIndex = trimmedStart.indexOf(delimiter)
-
-  if (delimiterIndex <= 0 || delimiterIndex > MAX_SPEAKER_PREFIX_CHARS) {
-    return null
-  }
-
-  return {
-    source: trimmedStart,
-    delimiterIndex
-  }
-}
-
-function tryParseChineseQuote(
-  line: string,
-  options: PlainTextPatternOptions
-): ParsedLineResult | null {
-  if (!options.chineseQuote || isTimeLikeLine(line)) {
-    return null
-  }
-
-  const prefix = findPrefixDelimiterIndex(line, "：")
-
-  if (!prefix) {
-    return null
-  }
-
-  const afterDelimiter = prefix.source.slice(prefix.delimiterIndex + 1).trimStart()
-
-  if (!afterDelimiter.startsWith("“")) {
-    return null
-  }
-
-  const rawSpeaker = prefix.source.slice(0, prefix.delimiterIndex)
-  const rawContent = stripTrailingQuote(afterDelimiter.slice(1), "”")
-  return buildSpeakerContentLine(rawSpeaker, rawContent)
-}
-
-function tryParseWesternQuote(
-  line: string,
-  options: PlainTextPatternOptions
-): ParsedLineResult | null {
-  if (!options.westernQuote || isTimeLikeLine(line)) {
-    return null
-  }
-
-  const prefix = findPrefixDelimiterIndex(line, ":")
-
-  if (!prefix) {
-    return null
-  }
-
-  const afterDelimiter = prefix.source.slice(prefix.delimiterIndex + 1).trimStart()
-
-  if (!afterDelimiter.startsWith('"')) {
-    return null
-  }
-
-  const rawSpeaker = prefix.source.slice(0, prefix.delimiterIndex)
-  const rawContent = stripTrailingQuote(afterDelimiter.slice(1), '"')
-  return buildSpeakerContentLine(rawSpeaker, rawContent)
-}
-
-function tryParseColon(
-  line: string,
-  delimiter: "：" | ":",
-  enabled: boolean
-): ParsedLineResult | null {
-  if (!enabled || isTimeLikeLine(line)) {
-    return null
-  }
-
-  const prefix = findPrefixDelimiterIndex(line, delimiter)
-
-  if (!prefix) {
-    return null
-  }
-
-  const rawSpeaker = prefix.source.slice(0, prefix.delimiterIndex)
-  const rawContent = prefix.source.slice(prefix.delimiterIndex + 1)
-  return buildSpeakerContentLine(rawSpeaker, rawContent)
-}
-
-function parseDoubleQuotedString(source: string, startIndex: number): ParsedQuotedString | null {
-  if (source[startIndex] !== '"') {
-    return null
-  }
-
+function parseRenpyString(source: string, startIndex: number) {
+  if (source[startIndex] !== '"') return null
   let value = ""
-  let cursor = startIndex + 1
-
-  while (cursor < source.length) {
-    const currentChar = source[cursor]
-
-    if (currentChar === "\\") {
-      const nextChar = source[cursor + 1]
-
-      if (typeof nextChar === "string") {
-        value += nextChar
-        cursor += 2
+  let index = startIndex + 1
+  while (index < source.length) {
+    const character = source[index]
+    if (character === "\\") {
+      const next = source[index + 1]
+      if (next === '"' || next === "\\") {
+        value += next
+        index += 2
         continue
       }
     }
+    if (character === '"') return { value, endIndex: index + 1 }
+    value += character
+    index += 1
+  }
+  return null
+}
 
-    if (currentChar === '"') {
+function parseHashLine(line: string, mode: HashMatchMode): ParsedLine | null {
+  if (mode === "markdown-heading") {
+    const match = line.match(/^(#{1,4})[\t ]+(.+)$/u)
+    if (!match) return null
+    return {
+      line: createScriptLine(`#${match[1].length}`, match[2]),
+      originalText: line,
+      kind: "heading"
+    }
+  }
+
+  if (mode === "note-and-internal-heading") {
+    const headingMatch = line.match(/^#([1-4])(?:[\t ]+|$)(.*)$/u)
+    if (headingMatch) {
       return {
-        value,
-        endIndex: cursor + 1
+        line: createScriptLine(`#${headingMatch[1]}`, headingMatch[2]),
+        originalText: line,
+        kind: "heading"
       }
     }
-
-    value += currentChar
-    cursor += 1
+    if (!line.startsWith("#")) return null
+    const content = line.slice(1).replace(/^[\t ]/, "")
+    return { line: createScriptLine("#", content), originalText: line, kind: "note" }
   }
 
+  return null
+}
+
+function parseChineseColonLine(line: string): ParsedLine | null {
+  const delimiterIndex = line.indexOf("\uFF1A")
+  if (delimiterIndex < 0) return null
+  const speaker = line.slice(0, delimiterIndex).trim()
+  if (!isValidCandidateSpeaker(speaker)) return null
   return {
-    value,
-    endIndex: source.length
+    line: createScriptLine(speaker, line.slice(delimiterIndex + 1).trim()),
+    originalText: line,
+    kind: "dialogue",
+    candidateSpeaker: speaker
   }
 }
 
-function tryParseRenpy(
-  line: string,
-  options: PlainTextPatternOptions
-): ParsedLineResult | null {
-  if (!options.renpy) {
-    return null
+function parseRenpyLine(line: string): ParsedLine | null {
+  const narration = parseRenpyString(line, 0)
+  if (narration && narration.endIndex === line.length) {
+    return { line: createScriptLine("", narration.value), originalText: line, kind: "narration" }
   }
 
-  const trimmedLine = line.trimStart()
-
-  if (trimmedLine.startsWith('"')) {
-    const speakerString = parseDoubleQuotedString(trimmedLine, 0)
-
-    if (!speakerString) {
-      return null
+  if (line.startsWith('"')) {
+    const speakerString = parseRenpyString(line, 0)
+    if (!speakerString || !/^[\t ]+/.test(line.slice(speakerString.endIndex))) return null
+    const contentStart = speakerString.endIndex + line.slice(speakerString.endIndex).match(/^[\t ]+/)?.[0].length!
+    const contentString = parseRenpyString(line, contentStart)
+    if (!contentString || contentString.endIndex !== line.length || !isValidCandidateSpeaker(speakerString.value)) return null
+    return {
+      line: createScriptLine(speakerString.value, contentString.value),
+      originalText: line,
+      kind: "dialogue",
+      candidateSpeaker: speakerString.value,
+      characterIdHint: quoteRenpySpeakerName(speakerString.value)
     }
-
-    const remaining = trimmedLine.slice(speakerString.endIndex).trimStart()
-
-    if (!remaining.startsWith('"')) {
-      return null
-    }
-
-    const contentString = parseDoubleQuotedString(remaining, 0)
-
-    if (!contentString) {
-      return null
-    }
-
-    return buildSpeakerContentLine(
-      speakerString.value,
-      contentString.value,
-      quoteRenpySpeakerName(speakerString.value)
-    )
   }
 
-  const bareSpeakerMatch = trimmedLine.match(/^([A-Za-z0-9_]+)\s+/u)
-
-  if (!bareSpeakerMatch) {
-    return null
-  }
-
-  const remaining = trimmedLine.slice(bareSpeakerMatch[0].length).trimStart()
-
-  if (!remaining.startsWith('"')) {
-    return null
-  }
-
-  const contentString = parseDoubleQuotedString(remaining, 0)
-
-  if (!contentString) {
-    return null
-  }
-
-  return buildSpeakerContentLine(
-    bareSpeakerMatch[1],
-    contentString.value,
-    bareSpeakerMatch[1]
-  )
-}
-
-function parseLine(line: string, options: PlainTextPatternOptions): ParsedLineResult {
-  return (
-    tryParseHeading(line, options) ??
-    tryParseNote(line, options) ??
-    tryParseRenpy(line, options) ??
-    tryParseChineseQuote(line, options) ??
-    tryParseWesternQuote(line, options) ??
-    tryParseColon(line, "：", options.chineseColon) ??
-    tryParseColon(line, ":", options.westernColon) ?? {
-      line: createScriptLine("", line)
-    }
-  )
-}
-
-function createEmptyStats(totalInputLines: number): PlainTextParseStats {
+  const bareMatch = line.match(/^([^\s"]+)[\t ]+/u)
+  if (!bareMatch || !isValidCandidateSpeaker(bareMatch[1])) return null
+  const contentString = parseRenpyString(line, bareMatch[0].length)
+  if (!contentString || contentString.endIndex !== line.length) return null
   return {
+    line: createScriptLine(bareMatch[1], contentString.value),
+    originalText: line,
+    kind: "dialogue",
+    candidateSpeaker: bareMatch[1],
+    characterIdHint: bareMatch[1]
+  }
+}
+
+function parseSpeakerLine(line: string, mode: SpeakerMatchMode): ParsedLine | null {
+  if (mode === "chinese-colon") return parseChineseColonLine(line)
+  if (mode === "renpy") return parseRenpyLine(line)
+  return null
+}
+
+function buildResult(parsedLines: ParsedLine[], totalInputLines: number, excludedSpeakers: Set<string>) {
+  const lines: ScriptLine[] = []
+  const characterIdHints: Record<string, string> = {}
+  const stats: PlainTextParseStats = {
     totalInputLines,
-    importedLines: 0,
+    importedLines: parsedLines.length,
     narrationLines: 0,
     dialogueLines: 0,
     noteLines: 0,
-    headingLines: 0
+    headingLines: 0,
+    speakerCount: 0
   }
+  const activeSpeakers = new Set<string>()
+
+  parsedLines.forEach((parsed) => {
+    const isRejectedSpeaker = parsed.candidateSpeaker && excludedSpeakers.has(parsed.candidateSpeaker)
+    const outputLine = isRejectedSpeaker
+      ? { ...parsed.line, speaker: "", content: parsed.originalText }
+      : { ...parsed.line }
+    lines.push(outputLine)
+
+    if (isRejectedSpeaker || parsed.kind === "narration") stats.narrationLines += 1
+    else if (parsed.kind === "note") stats.noteLines += 1
+    else if (parsed.kind === "heading") stats.headingLines += 1
+    else {
+      stats.dialogueLines += 1
+      activeSpeakers.add(outputLine.speaker)
+      if (parsed.characterIdHint) characterIdHints[outputLine.speaker] = parsed.characterIdHint
+    }
+  })
+  stats.speakerCount = activeSpeakers.size
+  return { lines, stats, characterIdHints }
 }
 
-export function parsePlainTextToLines(
-  text: string,
-  options: PlainTextPatternOptions = DEFAULT_PLAIN_TEXT_OPTIONS
-): PlainTextParseResult {
-  const mergedOptions = {
-    ...DEFAULT_PLAIN_TEXT_OPTIONS,
-    ...options
-  }
+export function parsePlainTextToLines(text: string, options: PlainTextPatternOptions = DEFAULT_PLAIN_TEXT_OPTIONS): PlainTextParseResult {
+  const merged = { ...DEFAULT_PLAIN_TEXT_OPTIONS, ...options }
   const rawLines = text === "" ? [] : text.split(/\r?\n/u)
-  const stats = createEmptyStats(rawLines.length)
-  const lines: ScriptLine[] = []
-  const characterIdHints: Record<string, string> = {}
+  const parsedLines: ParsedLine[] = []
+  const candidates = new Map<string, number>()
 
   rawLines.forEach((rawLine) => {
-    const line = normalizeLine(rawLine, mergedOptions.trimLines)
-
-    if (mergedOptions.skipEmptyLines && line.trim() === "") {
-      return
+    const line = normalizeLine(rawLine, merged.trimLines)
+    if (merged.skipEmptyLines && line === "") return
+    const parsed = parseHashLine(line, merged.hashMatch) ?? parseSpeakerLine(line, merged.speakerMatch) ?? {
+      line: createScriptLine("", line), originalText: line, kind: "narration" as const
     }
-
-    const parsedResult = parseLine(line, mergedOptions)
-    lines.push(parsedResult.line)
-    stats.importedLines += 1
-
-    if (parsedResult.characterIdHint) {
-      characterIdHints[parsedResult.line.speaker] = parsedResult.characterIdHint
-    }
-
-    switch (classifyLine(parsedResult.line.speaker)) {
-      case "dialogue":
-        stats.dialogueLines += 1
-        break
-      case "note":
-        stats.noteLines += 1
-        break
-      case "heading":
-        stats.headingLines += 1
-        break
-      default:
-        stats.narrationLines += 1
-        break
-    }
+    parsedLines.push(parsed)
+    if (parsed.candidateSpeaker) candidates.set(parsed.candidateSpeaker, (candidates.get(parsed.candidateSpeaker) ?? 0) + 1)
   })
 
   return {
-    lines,
-    stats,
-    characterIdHints
+    ...buildResult(parsedLines, rawLines.length, new Set()),
+    parsedLines,
+    speakerCandidates: Array.from(candidates, ([speaker, count]) => ({ speaker, count }))
   }
+}
+
+export function applySpeakerConfirmation(result: PlainTextParseResult, excludedSpeakers: Set<string>): PlainTextParseResult {
+  return { ...result, ...buildResult(result.parsedLines, result.stats.totalInputLines, excludedSpeakers) }
 }

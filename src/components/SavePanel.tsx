@@ -1,7 +1,9 @@
 import { useRef, type ChangeEvent } from "react"
 
 type SavePanelProps = {
+  projectTitle: string
   statusText: string
+  onProjectTitleChange: (title: string) => void
   onExportProjectFile: () => void
   onImportProjectFile: (file: File) => void | Promise<void>
   onCreateBlankProject: () => void
@@ -10,6 +12,7 @@ type SavePanelProps = {
 }
 
 const TEXT = {
+  projectName: "\u9879\u76EE\u540D\u79F0",
   status: "\u4fdd\u5b58\u72b6\u6001",
   export: "\u5bfc\u51fa\u9879\u76ee\u6587\u4ef6",
   import: "\u5bfc\u5165\u9879\u76ee\u6587\u4ef6",
@@ -20,7 +23,9 @@ const TEXT = {
 }
 
 export function SavePanel({
+  projectTitle,
   statusText,
+  onProjectTitleChange,
   onExportProjectFile,
   onImportProjectFile,
   onCreateBlankProject,
@@ -42,6 +47,10 @@ export function SavePanel({
 
   return (
     <div className="save-panel">
+      <label className="panel-field">
+        <span className="panel-field-label">{TEXT.projectName}</span>
+        <input type="text" value={projectTitle} onChange={(event) => onProjectTitleChange(event.target.value)} />
+      </label>
       <div className="stats-list">
         <div className="stats-row">
           <span>{TEXT.status}</span>
@@ -71,7 +80,7 @@ export function SavePanel({
         ref={fileInputRef}
         className="panel-file-input"
         type="file"
-        accept=".json,.vns.json,application/json"
+        accept=".json,.vns,.vns.json,application/json"
         onChange={handleFileChange}
       />
     </div>

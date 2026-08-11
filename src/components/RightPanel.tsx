@@ -27,6 +27,7 @@ type RightPanelProps = {
   onBeginCharacterEdit: () => void
   onEndCharacterEdit: () => void
   saveStatusText: string
+  onProjectTitleChange: (title: string) => void
   searchQuery: string
   replaceValue: string
   searchMatchCount: number
@@ -111,6 +112,7 @@ export function RightPanel({
   onBeginCharacterEdit,
   onEndCharacterEdit,
   saveStatusText,
+  onProjectTitleChange,
   searchQuery,
   replaceValue,
   searchMatchCount,
@@ -188,7 +190,9 @@ export function RightPanel({
     <aside className="panel panel-sidebar right-panel">
       <Section title={LABELS.save} open={openSections.save} onToggle={() => toggleSection("save")}>
         <SavePanel
+          projectTitle={project.title}
           statusText={saveStatusText}
+          onProjectTitleChange={onProjectTitleChange}
           onExportProjectFile={onExportProjectFile}
           onImportProjectFile={onImportProjectFile}
           onCreateBlankProject={onCreateBlankProject}

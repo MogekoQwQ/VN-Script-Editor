@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { VNProject } from "../types"
 import { buildPrintableHtml, openPrintWindow } from "../utils/exportPdfHtml"
 import { exportRenpy } from "../utils/exportRenpy"
+import { sanitizeFilenamePart } from "../utils/filenames"
 
 type ExportPanelProps = {
   project: VNProject
@@ -24,8 +25,7 @@ const TEXT = {
 }
 
 function buildDownloadName(title: string, suffix: string) {
-  const normalizedTitle = title.trim().replace(/[\\/:*?"<>|]+/g, "_")
-  return `${normalizedTitle || "script_export"}${suffix}`
+  return `${sanitizeFilenamePart(title)}${suffix}`
 }
 
 function downloadTextFile(content: string, filename: string, mimeType: string) {
@@ -83,7 +83,7 @@ export function ExportPanel({ project, onExportHeadingsChange }: ExportPanelProp
         includeHeadings: includePdfHeadings,
         includeNotes: includePdfNotes
       }),
-      "script_preview.html",
+      buildDownloadName(project.title, ".preview.html"),
       "text/html;charset=utf-8"
     )
     setPdfStatus(TEXT.downloaded)

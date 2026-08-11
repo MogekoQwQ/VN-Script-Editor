@@ -9,35 +9,26 @@ export function cloneLine(line: ScriptLine): ScriptLine {
   }
 }
 
-export function snapshotSelectedLines(lines: ScriptLine[], selectedLineIds: Set<string>) {
-  return lines
-    .filter((line) => selectedLineIds.has(line.id))
-    .map((line) => ({
-      ...line
-    }))
+export type LineRangeSelection = {
+  anchorLineId: string
+  focusLineId: string
 }
 
-export function duplicateSelectedLines(lines: ScriptLine[], selectedLineIds: Set<string>) {
-  const selectedIndices = lines
-    .map((line, index) => (selectedLineIds.has(line.id) ? index : -1))
-    .filter((index) => index >= 0)
-
-  if (selectedIndices.length === 0) {
-    return {
-      lines,
-      duplicatedLineIds: []
-    }
+export function getLineRange(lines: ScriptLine[], selection: LineRangeSelection | null) {
+  if (!selection) {
+    return []
   }
 
-  const insertIndex = selectedIndices[selectedIndices.length - 1] + 1
-  const duplicatedLines = lines
-    .filter((line) => selectedLineIds.has(line.id))
-    .map(cloneLine)
+  const anchorIndex = lines.findIndex((line) => line.id === selection.anchorLineId)
+  const focusIndex = lines.findIndex((line) => line.id === selection.focusLineId)
 
-  return {
-    lines: [...lines.slice(0, insertIndex), ...duplicatedLines, ...lines.slice(insertIndex)],
-    duplicatedLineIds: duplicatedLines.map((line) => line.id)
+  if (anchorIndex < 0 || focusIndex < 0) {
+    return []
   }
+
+  const startIndex = Math.min(anchorIndex, focusIndex)
+  const endIndex = Math.max(anchorIndex, focusIndex)
+  return lines.slice(startIndex, endIndex + 1)
 }
 
 export function pasteClipboardLines(
@@ -62,48 +53,4 @@ export function pasteClipboardLines(
     lines: [...lines.slice(0, insertIndex), ...clonedLines, ...lines.slice(insertIndex)],
     insertedLineIds: clonedLines.map((line) => line.id)
   }
-}
-
-export function moveSelectedLines(
-  lines: ScriptLine[],
-  selectedLineIds: Set<string>,
-  direction: -1 | 1
-) {
-  if (lines.length <= 1 || selectedLineIds.size === 0) {
-    return lines
-  }
-
-  if (direction === -1 && selectedLineIds.has(lines[0]?.id ?? "")) {
-    return lines
-  }
-
-  if (direction === 1 && selectedLineIds.has(lines[lines.length - 1]?.id ?? "")) {
-    return lines
-  }
-
-  const nextLines = [...lines]
-
-  if (direction === -1) {
-    for (let index = 1; index < nextLines.length; index += 1) {
-      if (
-        selectedLineIds.has(nextLines[index].id) &&
-        !selectedLineIds.has(nextLines[index - 1].id)
-      ) {
-        ;[nextLines[index - 1], nextLines[index]] = [nextLines[index], nextLines[index - 1]]
-      }
-    }
-
-    return nextLines
-  }
-
-  for (let index = nextLines.length - 2; index >= 0; index -= 1) {
-    if (
-      selectedLineIds.has(nextLines[index].id) &&
-      !selectedLineIds.has(nextLines[index + 1].id)
-    ) {
-      ;[nextLines[index], nextLines[index + 1]] = [nextLines[index + 1], nextLines[index]]
-    }
-  }
-
-  return nextLines
 }

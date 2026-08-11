@@ -9,10 +9,15 @@ import type { CharacterMap, CharacterProfile, ScriptLine, VNProject } from "./ty
 import { areProjectsEqual, cloneProject, pushHistorySnapshot } from "./utils/history"
 import { createLineId } from "./utils/ids"
 import {
-  moveSelectedLines,
   pasteClipboardLines,
-  snapshotSelectedLines
+  getLineRange,
+  type LineRangeSelection
 } from "./utils/lineOperations"
+import {
+  readExternalPlainText,
+  serializeLinesForPlainText,
+  writeLinesToSystemClipboard
+} from "./utils/clipboard"
 import {
   clampEditorFontSize,
   clampReadingWrapChars,
@@ -24,6 +29,7 @@ import {
   saveProjectToLocal
 } from "./utils/projectStorage"
 import { validateProjectLike } from "./utils/projectValidation"
+import { buildTimestampedFilename } from "./utils/filenames"
 import { findMatches, type SearchMatch } from "./utils/search"
 import {
   createDefaultCharacterProfile,
@@ -37,6 +43,10 @@ import { isRoleSpeaker } from "./utils/lineTypes"
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type FocusTarget = FocusRequest | null
 type ScrollTarget = ScrollRequest | null
+type LineClipboard = {
+  lines: ScriptLine[]
+  plainText: string
+}
 
 type InitialProjectState = {
   project: VNProject
@@ -140,13 +150,6 @@ function isEditableElement(target: EventTarget | null): boolean {
   )
 }
 
-function buildProjectFilename(title: string) {
-  const normalizedTitle = title.trim().replace(/[\\/:*?"<>|]+/g, "_")
-  const fallbackTitle = normalizedTitle || "vn_script_project"
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  return `${fallbackTitle}_${timestamp}.vns.json`
-}
-
 function downloadBlob(content: BlobPart, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -208,16 +211,17 @@ export default function App() {
   const [project, setProject] = useState<VNProject>(initialProjectStateRef.current.project)
   const [undoStack, setUndoStack] = useState<VNProject[]>([])
   const [redoStack, setRedoStack] = useState<VNProject[]>([])
-  const [activeLineId, setActiveLineId] = useState<string | null>(null)
-  const [lastFocusedLineId, setLastFocusedLineId] = useState<string | null>(null)
+  const initialLineId = initialProjectStateRef.current.project.lines[0]?.id ?? null
+  const [activeLineId, setActiveLineId] = useState<string | null>(initialLineId)
+  const [lastFocusedLineId, setLastFocusedLineId] = useState<string | null>(initialLineId)
   const [typewriterMode, setTypewriterMode] = useState(false)
   const [focusRequest, setFocusRequest] = useState<FocusTarget>(null)
   const [scrollRequest, setScrollRequest] = useState<ScrollTarget>(null)
-  const [selectionMode, setSelectionMode] = useState(false)
-  const [selectedLineIds, setSelectedLineIds] = useState<string[]>([])
-  const [lastSelectedLineId, setLastSelectedLineId] = useState<string | null>(null)
-  const [lineClipboard, setLineClipboard] = useState<ScriptLine[]>([])
-  const [layoutVersion, setLayoutVersion] = useState(0)
+  const [lineRangeSelection, setLineRangeSelection] = useState<LineRangeSelection | null>(
+    initialLineId ? { anchorLineId: initialLineId, focusLineId: initialLineId } : null
+  )
+  const [lineClipboard, setLineClipboard] = useState<LineClipboard>({ lines: [], plainText: "" })
+  const [isTextEditing, setIsTextEditing] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
     initialProjectStateRef.current.restoredFromLocal ? "saved" : "idle"
   )
@@ -235,8 +239,7 @@ export default function App() {
   const projectRef = useRef(project)
   const undoStackRef = useRef(undoStack)
   const redoStackRef = useRef(redoStack)
-  const selectionModeRef = useRef(selectionMode)
-  const selectedLineIdsRef = useRef(selectedLineIds)
+  const lineRangeSelectionRef = useRef(lineRangeSelection)
   const activeLineIdRef = useRef(activeLineId)
   const lastFocusedLineIdRef = useRef(lastFocusedLineId)
   const lineClipboardRef = useRef(lineClipboard)
@@ -253,10 +256,6 @@ export default function App() {
   const orderedActiveSpeakers = useMemo(
     () => resolveCharacterDisplayOrder(activeSpeakers, project.settings.characterOrder),
     [activeSpeakers, project.settings.characterOrder]
-  )
-  const lineIndexMap = useMemo(
-    () => new Map(project.lines.map((line, index) => [line.id, index])),
-    [project.lines]
   )
   const searchMatches = useMemo(() => {
     if (searchQuery.trim() === "") {
@@ -284,12 +283,8 @@ export default function App() {
   }, [redoStack])
 
   useEffect(() => {
-    selectionModeRef.current = selectionMode
-  }, [selectionMode])
-
-  useEffect(() => {
-    selectedLineIdsRef.current = selectedLineIds
-  }, [selectedLineIds])
+    lineRangeSelectionRef.current = lineRangeSelection
+  }, [lineRangeSelection])
 
   useEffect(() => {
     activeLineIdRef.current = activeLineId
@@ -305,23 +300,30 @@ export default function App() {
 
   useEffect(() => {
     const lineIds = new Set(project.lines.map((line) => line.id))
+    const fallbackLineId =
+      (activeLineId && lineIds.has(activeLineId) ? activeLineId : null) ??
+      (lastFocusedLineId && lineIds.has(lastFocusedLineId) ? lastFocusedLineId : null) ??
+      project.lines[0]?.id ??
+      null
 
-    setSelectedLineIds((currentSelection) =>
-      currentSelection.filter((lineId) => lineIds.has(lineId))
-    )
-
-    if (activeLineId && !lineIds.has(activeLineId)) {
-      setActiveLineId(null)
+    if (
+      fallbackLineId &&
+      (!lineRangeSelection ||
+        !lineIds.has(lineRangeSelection.anchorLineId) ||
+        !lineIds.has(lineRangeSelection.focusLineId))
+    ) {
+      setLineRangeSelection({ anchorLineId: fallbackLineId, focusLineId: fallbackLineId })
     }
 
-    if (lastFocusedLineId && !lineIds.has(lastFocusedLineId)) {
-      setLastFocusedLineId(null)
+    if (fallbackLineId && activeLineId !== fallbackLineId) {
+      setActiveLineId(fallbackLineId)
     }
 
-    if (lastSelectedLineId && !lineIds.has(lastSelectedLineId)) {
-      setLastSelectedLineId(null)
+    if (fallbackLineId && lastFocusedLineId !== fallbackLineId) {
+      setLastFocusedLineId(fallbackLineId)
     }
-  }, [project.lines, activeLineId, lastFocusedLineId, lastSelectedLineId])
+
+  }, [project.lines, activeLineId, lastFocusedLineId, lineRangeSelection])
 
   useEffect(() => {
     if (searchQuery === "" || searchMatches.length === 0) {
@@ -446,6 +448,8 @@ export default function App() {
   const requestFocus = (lineId: string, field: FocusField) => {
     setActiveLineId(lineId)
     setLastFocusedLineId(lineId)
+    setLineRangeSelection({ anchorLineId: lineId, focusLineId: lineId })
+    setIsTextEditing(true)
     setFocusRequest({
       lineId,
       field,
@@ -460,9 +464,11 @@ export default function App() {
     })
   }
 
-  const clearSelection = () => {
-    setSelectedLineIds([])
-    setLastSelectedLineId(null)
+  const setScriptFocus = (lineId: string) => {
+    setActiveLineId(lineId)
+    setLastFocusedLineId(lineId)
+    setLineRangeSelection({ anchorLineId: lineId, focusLineId: lineId })
+    setIsTextEditing(false)
   }
 
   const replaceProjectState = (nextProject: VNProject, saveMessage: string) => {
@@ -470,11 +476,12 @@ export default function App() {
     setProjectDirect(nextProject)
     setUndoHistory([])
     setRedoHistory([])
-    setSelectionMode(false)
-    clearSelection()
-    setLineClipboard([])
-    setActiveLineId(nextProject.lines[0]?.id ?? null)
-    setLastFocusedLineId(nextProject.lines[0]?.id ?? null)
+    setLineClipboard({ lines: [], plainText: "" })
+    const firstLineId = nextProject.lines[0]?.id ?? null
+    setActiveLineId(firstLineId)
+    setLastFocusedLineId(firstLineId)
+    setLineRangeSelection(firstLineId ? { anchorLineId: firstLineId, focusLineId: firstLineId } : null)
+    setIsTextEditing(false)
     autosaveSuspendedSnapshotRef.current = null
     lastPersistedSnapshotRef.current = null
     setSearchStatusText("")
@@ -482,32 +489,12 @@ export default function App() {
     setSaveStatusText(saveMessage)
   }
 
-  const exitSelectionMode = () => {
-    setSelectionMode(false)
-    clearSelection()
-    window.requestAnimationFrame(() => {
-      setLayoutVersion((currentVersion) => currentVersion + 1)
-    })
-  }
-
-  const enterSelectionMode = (lineId: string) => {
-    setSelectionMode(true)
-    setSelectedLineIds([lineId])
-    setLastSelectedLineId(lineId)
-    setActiveLineId(lineId)
-    setLastFocusedLineId(lineId)
-    window.requestAnimationFrame(() => {
-      setLayoutVersion((currentVersion) => currentVersion + 1)
-    })
-  }
-
   const focusSearchMatch = (match: SearchMatch | null) => {
     if (!match) {
       return
     }
 
-    setActiveLineId(match.lineId)
-    setLastFocusedLineId(match.lineId)
+    setScriptFocus(match.lineId)
     requestScroll(match.lineId)
   }
 
@@ -533,6 +520,34 @@ export default function App() {
     setLastFocusedLineId(lineId)
   }
 
+  const handleTextEditFocus = (lineId: string) => {
+    setActiveLineId(lineId)
+    setLastFocusedLineId(lineId)
+    setLineRangeSelection({ anchorLineId: lineId, focusLineId: lineId })
+    setIsTextEditing(true)
+  }
+
+  const handleBlankLineClick = (lineId: string) => {
+    setScriptFocus(lineId)
+  }
+
+  const handleBeginRangeSelection = (lineId: string, extend: boolean) => {
+    const anchorLineId = extend && lineRangeSelectionRef.current
+      ? lineRangeSelectionRef.current.anchorLineId
+      : lineId
+    setLineRangeSelection({ anchorLineId, focusLineId: lineId })
+    handleActiveLineChange(lineId)
+    setIsTextEditing(false)
+  }
+
+  const handleExtendRangeSelection = (lineId: string) => {
+    const currentSelection = lineRangeSelectionRef.current
+    if (!currentSelection) return
+    setLineRangeSelection({ ...currentSelection, focusLineId: lineId })
+    handleActiveLineChange(lineId)
+    setIsTextEditing(false)
+  }
+
   const handleSpeakerChange = (lineId: string, speaker: string) => {
     updateProjectLive((currentProject) => ({
       ...currentProject,
@@ -540,6 +555,10 @@ export default function App() {
         line.id === lineId ? { ...line, speaker } : line
       )
     }))
+  }
+
+  const handleProjectTitleChange = (title: string) => {
+    updateProjectLive((currentProject) => ({ ...currentProject, title }))
   }
 
   const handleSpeakerCommit = (lineId: string) => {
@@ -604,7 +623,6 @@ export default function App() {
       nextLines.splice(lineIndex + 1, 0, newLine)
 
       requestFocus(newLine.id, focusField)
-      clearSelection()
       return {
         ...currentProject,
         lines: nextLines
@@ -618,18 +636,9 @@ export default function App() {
       const firstRemovedIndex = currentProject.lines.findIndex((line) => lineIdSet.has(line.id))
       const remainingLines = currentProject.lines.filter((line) => !lineIdSet.has(line.id))
 
-      if (selectionModeRef.current) {
-        setSelectionMode(false)
-        window.requestAnimationFrame(() => {
-          setLayoutVersion((currentVersion) => currentVersion + 1)
-        })
-      }
-
-      clearSelection()
-
       if (remainingLines.length === 0) {
         const emptyLine = createEmptyLine()
-        requestFocus(emptyLine.id, "speaker")
+        setScriptFocus(emptyLine.id)
 
         return {
           ...currentProject,
@@ -644,7 +653,7 @@ export default function App() {
       const fallbackLine = remainingLines[targetIndex]
 
       if (fallbackLine) {
-        requestFocus(fallbackLine.id, "speaker")
+        setScriptFocus(fallbackLine.id)
       }
 
       return {
@@ -654,216 +663,63 @@ export default function App() {
     })
   }
 
-  const handleCopyLine = (lineId: string) => {
-    const sourceLine = projectRef.current.lines.find((line) => line.id === lineId)
+  const getRangeLines = () => getLineRange(projectRef.current.lines, lineRangeSelectionRef.current)
 
-    if (!sourceLine) {
-      return
-    }
-
-    setLineClipboard([{ ...sourceLine }])
+  const handleCopyRange = () => {
+    const copiedLines = getRangeLines().map((line) => ({ ...line }))
+    if (copiedLines.length === 0) return
+    setLineClipboard({
+      lines: copiedLines,
+      plainText: serializeLinesForPlainText(copiedLines)
+    })
+    void writeLinesToSystemClipboard(copiedLines)
   }
 
-  const handleCutLine = (lineId: string) => {
-    const sourceLine = projectRef.current.lines.find((line) => line.id === lineId)
-
-    if (!sourceLine) {
-      return
-    }
-
-    setLineClipboard([{ ...sourceLine }])
-    removeLineIds([lineId])
+  const removeCurrentRange = () => {
+    const selectedLines = getRangeLines()
+    if (selectedLines.length === 0) return
+    removeLineIds(selectedLines.map((line) => line.id))
   }
 
-  const handleDeleteLine = (lineId: string) => {
-    const currentProject = projectRef.current
-
-    if (currentProject.lines.length === 1) {
-      commitProjectUpdate(() => ({
-        ...currentProject,
-        lines: [{ ...currentProject.lines[0], speaker: "", content: "" }]
-      }))
-      requestFocus(lineId, "speaker")
-      return
-    }
-
-    removeLineIds([lineId])
+  const handleCutRange = () => {
+    handleCopyRange()
+    removeCurrentRange()
   }
 
-  const handleMoveLine = (lineId: string, direction: -1 | 1) => {
+  const pasteAtScriptLevel = async () => {
+    const systemText = await readExternalPlainText()
+    const internalClipboard = lineClipboardRef.current
+    const normalizedSystemText = systemText?.replace(/\r\n/g, "\n") ?? null
+    const useInternalClipboard =
+      internalClipboard.lines.length > 0 &&
+      (normalizedSystemText === null || normalizedSystemText === internalClipboard.plainText)
+    const clipboardLines = useInternalClipboard
+      ? internalClipboard.lines.map((line) => ({ ...line }))
+      : normalizedSystemText !== null && normalizedSystemText !== ""
+        ? [{ id: createLineId(), speaker: "", content: normalizedSystemText }]
+        : []
+    if (clipboardLines.length === 0) return
+
+    const selectedLines = getRangeLines()
+    const anchorLineId =
+      selectedLines[selectedLines.length - 1]?.id ??
+      activeLineIdRef.current ??
+      lastFocusedLineIdRef.current ??
+      null
     commitProjectUpdate((currentProject) => {
-      const lineIndex = currentProject.lines.findIndex((line) => line.id === lineId)
-      const targetIndex = lineIndex + direction
-
-      if (
-        lineIndex === -1 ||
-        targetIndex < 0 ||
-        targetIndex >= currentProject.lines.length
-      ) {
-        return currentProject
-      }
-
-      const nextLines = [...currentProject.lines]
-      const [movedLine] = nextLines.splice(lineIndex, 1)
-      nextLines.splice(targetIndex, 0, movedLine)
-      requestFocus(lineId, "speaker")
-
-      return {
-        ...currentProject,
-        lines: nextLines
-      }
+      const result = pasteClipboardLines(currentProject.lines, clipboardLines, anchorLineId)
+      if (result.insertedLineIds.length === 0) return currentProject
+      const firstLineId = result.insertedLineIds[0]
+      setScriptFocus(firstLineId)
+      requestScroll(firstLineId)
+      return { ...currentProject, lines: result.lines }
     })
   }
 
-  const handleToggleLineSelection = (
-    lineId: string,
-    modifiers: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }
-  ) => {
-    if (!selectionMode) {
-      return
-    }
-
-    if (modifiers.shiftKey && lastSelectedLineId && lineIndexMap.has(lastSelectedLineId)) {
-      const wasTargetSelected = selectedLineIds.includes(lineId)
-      const startIndex = lineIndexMap.get(lastSelectedLineId) ?? 0
-      const endIndex = lineIndexMap.get(lineId) ?? 0
-      const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex]
-      const rangeSelection = project.lines.slice(from, to + 1).map((line) => line.id)
-
-      if (wasTargetSelected) {
-        setSelectedLineIds((currentSelection) =>
-          currentSelection.filter((selectedId) => !rangeSelection.includes(selectedId))
-        )
-      } else {
-        setSelectedLineIds((currentSelection) =>
-          Array.from(new Set([...currentSelection, ...rangeSelection]))
-        )
-      }
-
-      setLastSelectedLineId(lineId)
-      return
-    }
-
-    setSelectedLineIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-
-      if (nextSelection.has(lineId)) {
-        nextSelection.delete(lineId)
-      } else {
-        nextSelection.add(lineId)
-      }
-
-      return Array.from(nextSelection)
-    })
-    setLastSelectedLineId(lineId)
-  }
-
-  const handleCopySelectedLines = () => {
-    if (selectedLineIdsRef.current.length === 0) {
-      return
-    }
-
-    const selectedSet = new Set(selectedLineIdsRef.current)
-    setLineClipboard(snapshotSelectedLines(projectRef.current.lines, selectedSet))
-  }
-
-  const handleCutSelectedLines = () => {
-    if (selectedLineIdsRef.current.length === 0) {
-      return
-    }
-
-    const selectedSet = new Set(selectedLineIdsRef.current)
-    setLineClipboard(snapshotSelectedLines(projectRef.current.lines, selectedSet))
-    removeLineIds(selectedLineIdsRef.current)
-  }
-
-  const handlePasteClipboard = () => {
-    if (lineClipboardRef.current.length === 0) {
-      return
-    }
-
-    const anchorLineId = activeLineIdRef.current ?? lastFocusedLineIdRef.current ?? null
-
-    commitProjectUpdate((currentProject) => {
-      const result = pasteClipboardLines(
-        currentProject.lines,
-        lineClipboardRef.current,
-        anchorLineId
-      )
-
-      if (result.insertedLineIds.length === 0) {
-        return currentProject
-      }
-
-      setActiveLineId(result.insertedLineIds[0])
-      setLastFocusedLineId(result.insertedLineIds[0])
-      requestScroll(result.insertedLineIds[0])
-      requestFocus(result.insertedLineIds[0], "speaker")
-
-      return {
-        ...currentProject,
-        lines: result.lines
-      }
-    })
-  }
-
-  const handlePasteClipboardBelowLine = (lineId: string) => {
-    if (lineClipboardRef.current.length === 0) {
-      return
-    }
-
-    commitProjectUpdate((currentProject) => {
-      const result = pasteClipboardLines(currentProject.lines, lineClipboardRef.current, lineId)
-
-      if (result.insertedLineIds.length === 0) {
-        return currentProject
-      }
-
-      setActiveLineId(result.insertedLineIds[0] ?? null)
-      setLastFocusedLineId(result.insertedLineIds[0] ?? null)
-      requestScroll(result.insertedLineIds[0])
-      requestFocus(result.insertedLineIds[0], "speaker")
-
-      return {
-        ...currentProject,
-        lines: result.lines
-      }
-    })
-  }
-
-  const handleDeleteSelectedLines = () => {
-    if (selectedLineIdsRef.current.length === 0) {
-      return
-    }
-
-    removeLineIds(selectedLineIdsRef.current)
-  }
-
-  const handleMoveSelectedLines = (direction: -1 | 1) => {
-    if (selectedLineIdsRef.current.length === 0) {
-      return
-    }
-
-    commitProjectUpdate((currentProject) => ({
-      ...currentProject,
-      lines: moveSelectedLines(
-        currentProject.lines,
-        new Set(selectedLineIdsRef.current),
-        direction
-      )
-    }))
-  }
-
-  const handleSelectAllLines = () => {
-    setSelectionMode(true)
-    const nextSelectedLineIds = project.lines.map((line) => line.id)
-    setSelectedLineIds(nextSelectedLineIds)
-    setLastSelectedLineId(nextSelectedLineIds[nextSelectedLineIds.length - 1] ?? null)
-  }
+  const handleDeleteRange = () => removeCurrentRange()
 
   const handleSelectOutlineLine = (lineId: string) => {
-    setActiveLineId(lineId)
-    setLastFocusedLineId(lineId)
+    setScriptFocus(lineId)
     requestScroll(lineId)
   }
 
@@ -990,7 +846,7 @@ export default function App() {
 
     downloadBlob(
       JSON.stringify(exportProject, null, 2),
-      buildProjectFilename(exportProject.title),
+      buildTimestampedFilename(exportProject.title, ".vns"),
       "application/json;charset=utf-8"
     )
     setSaveStatus("saved")
@@ -1017,12 +873,6 @@ const handleInsertPlainText = ({
     ) {
       return false
     }
-
-    setSelectionMode(false)
-    clearSelection()
-    window.requestAnimationFrame(() => {
-      setLayoutVersion((currentVersion) => currentVersion + 1)
-    })
 
     commitProjectUpdate((currentProject) => {
       const anchorLineId = activeLineIdRef.current ?? lastFocusedLineIdRef.current ?? null
@@ -1361,50 +1211,34 @@ const handleInsertPlainText = ({
         return
       }
 
-      if (!selectionModeRef.current || targetIsEditable) {
+      if (targetIsEditable) {
         return
       }
 
-      if (isShortcutPressed && shortcutKey === "c" && selectedLineIdsRef.current.length > 0) {
+      if (isShortcutPressed && shortcutKey === "c" && lineRangeSelectionRef.current) {
         event.preventDefault()
-        handleCopySelectedLines()
+        handleCopyRange()
         return
       }
 
-      if (isShortcutPressed && shortcutKey === "x" && selectedLineIdsRef.current.length > 0) {
+      if (isShortcutPressed && shortcutKey === "x" && lineRangeSelectionRef.current) {
         event.preventDefault()
-        handleCutSelectedLines()
+        handleCutRange()
         return
       }
 
-      if (isShortcutPressed && shortcutKey === "v" && lineClipboardRef.current.length > 0) {
+      if (isShortcutPressed && shortcutKey === "v") {
         event.preventDefault()
-        handlePasteClipboard()
+        void pasteAtScriptLevel()
         return
       }
 
-      if (isShortcutPressed && shortcutKey === "d") {
+      if ((event.key === "Delete" || event.key === "Backspace") && lineRangeSelectionRef.current) {
         event.preventDefault()
-        exitSelectionMode()
+        handleDeleteRange()
         return
       }
 
-      if (isShortcutPressed && shortcutKey === "a") {
-        event.preventDefault()
-        handleSelectAllLines()
-        return
-      }
-
-      if (event.key === "Delete" && selectedLineIdsRef.current.length > 0) {
-        event.preventDefault()
-        handleDeleteSelectedLines()
-        return
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault()
-        exitSelectionMode()
-      }
     }
 
     window.addEventListener("keydown", handleKeyDown)
@@ -1427,36 +1261,30 @@ const handleInsertPlainText = ({
         characters={project.characters}
         readingWrapChars={project.settings.readingWrapChars}
         editorFontSize={project.settings.editorFontSize}
-        selectionMode={selectionMode}
-        layoutVersion={layoutVersion}
-        selectedLineIds={selectedLineIds}
+        lineRangeSelection={lineRangeSelection}
         activeLineId={activeLineId}
         searchMatchLineId={shouldShowSearchHighlight ? currentSearchMatch?.lineId ?? null : null}
         typewriterMode={typewriterMode}
         focusRequest={focusRequest}
         scrollRequest={scrollRequest}
-        clipboardLineCount={lineClipboard.length}
-        onActiveLineChange={handleActiveLineChange}
+        isTextEditing={isTextEditing}
+        onTextEditFocus={handleTextEditFocus}
+        onBlankLineClick={handleBlankLineClick}
+        onBeginRangeSelection={handleBeginRangeSelection}
+        onExtendRangeSelection={handleExtendRangeSelection}
         onSpeakerChange={handleSpeakerChange}
         onSpeakerCommit={handleSpeakerCommit}
         onContentChange={handleContentChange}
         onBeginTextEdit={beginProjectEdit}
-        onEndTextEdit={finalizePendingEdit}
+        onEndTextEdit={() => {
+          setIsTextEditing(false)
+          finalizePendingEdit()
+        }}
         onInsertLineBelow={handleInsertLineBelow}
-        onDeleteLine={handleDeleteLine}
-        onCutLine={handleCutLine}
-        onCopyLine={handleCopyLine}
-        onPasteLineBelow={handlePasteClipboardBelowLine}
-        onMoveLine={handleMoveLine}
-        onEnterSelectionMode={enterSelectionMode}
-        onToggleLineSelection={handleToggleLineSelection}
-        onCopySelectedLines={handleCopySelectedLines}
-        onCutSelectedLines={handleCutSelectedLines}
-        onPasteClipboard={handlePasteClipboard}
-        onDeleteSelectedLines={handleDeleteSelectedLines}
-        onMoveSelectedLines={handleMoveSelectedLines}
-        onClearSelection={clearSelection}
-        onExitSelectionMode={exitSelectionMode}
+        onCopyRange={handleCopyRange}
+        onCutRange={handleCutRange}
+        onDeleteRange={handleDeleteRange}
+        onPasteRange={() => void pasteAtScriptLevel()}
       />
 
       <RightPanel
@@ -1486,6 +1314,7 @@ const handleInsertPlainText = ({
         onCreateBlankProject={handleCreateBlankProject}
         onResetToDefaultProject={handleResetToDefaultProject}
         onClearLocalProject={handleClearLocalProject}
+        onProjectTitleChange={handleProjectTitleChange}
         onSearchQueryChange={handleSearchQueryChange}
         onReplaceValueChange={setReplaceValue}
         onPreviousMatch={handlePreviousMatch}
