@@ -20,10 +20,12 @@ type LineEditorProps = {
   onBlankLineClick: (lineId: string) => void
   onGutterPointerDown: (lineId: string, event: React.PointerEvent<HTMLButtonElement>) => void
   onInsertBelow: (lineId: string, focusField: FocusField, source?: ScriptLine | null) => void
+  onSwitchTextField: (lineId: string, currentField: FocusField) => void
   isActive: boolean
   isSearchCurrent: boolean
   isDimmed: boolean
   isRangeSelected: boolean
+  isSingleFocusRange: boolean
   containerRef?: Ref<HTMLDivElement>
   speakerInputRef?: Ref<HTMLInputElement>
   contentInputRef?: Ref<HTMLTextAreaElement>
@@ -53,10 +55,12 @@ function LineEditorComponent(props: LineEditorProps) {
   const {
     line, speakerColor, speakerOptions, readingWrapChars, editorFontSize,
     onSpeakerChange, onSpeakerCommit, onContentChange, onBeginTextEdit, onEndTextEdit,
-    onTextEditFocus, onBlankLineClick, onGutterPointerDown, onInsertBelow,
-    isActive, isSearchCurrent, isDimmed, isRangeSelected, containerRef, speakerInputRef, contentInputRef
+    onTextEditFocus, onBlankLineClick, onGutterPointerDown, onInsertBelow, onSwitchTextField,
+    isActive, isSearchCurrent, isDimmed, isRangeSelected, isSingleFocusRange, containerRef, speakerInputRef, contentInputRef
   } = props
   const [isSpeakerFocused, setIsSpeakerFocused] = useState(false)
+  const [isContentFocused, setIsContentFocused] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false)
   const contentElementRef = useRef<HTMLTextAreaElement | null>(null)
@@ -83,10 +87,17 @@ function LineEditorComponent(props: LineEditorProps) {
 
   const commitSpeaker = () => { onSpeakerCommit(line.id); onEndTextEdit() }
   const applySpeakerOption = (displayName: string) => { onSpeakerChange(line.id, displayName); setIsAutocompleteOpen(false); setHighlightedIndex(0) }
+  const isSpeakerHighlighted =
+    isHovered ||
+    isSpeakerFocused ||
+    isContentFocused ||
+    (isSingleFocusRange && isActive)
 
   return (
     <div ref={containerRef} data-script-line-id={line.id}
-      className={["line-editor", `line-${variant}`, isActive ? "is-active" : "", isSearchCurrent ? "is-search-current" : "", isRangeSelected ? "is-range-selected" : "", isDimmed ? "is-dimmed" : ""].filter(Boolean).join(" ")}
+      className={["line-editor", `line-${variant}`, isActive ? "is-active" : "", isSearchCurrent ? "is-search-current" : "", isRangeSelected ? "is-range-selected" : "", isSpeakerHighlighted ? "is-speaker-highlighted" : "", isDimmed ? "is-dimmed" : ""].filter(Boolean).join(" ")}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       onPointerDown={(event) => {
         const target = event.target as HTMLElement
         if (target.closest("input, textarea, button, .speaker-autocomplete")) return
@@ -94,7 +105,7 @@ function LineEditorComponent(props: LineEditorProps) {
         ;(document.activeElement as HTMLElement | null)?.blur()
         onBlankLineClick(line.id)
       }}>
-      <button type="button" className="line-gutter" title={"\u62d6\u62fd\u9009\u62e9\u8fde\u7eed\u884c"} aria-label={"\u9009\u62e9\u5f53\u524d\u884c"}
+      <button type="button" className="line-gutter" title={"\u62d6\u62fd\u9009\u62e9\u8fde\u7eed\u884c"} aria-label={"\u9009\u62e9\u5f53\u524d\u884c"} tabIndex={-1}
         onPointerDown={(event) => { event.stopPropagation(); onGutterPointerDown(line.id, event) }} />
       <div className="line-speaker-cell">
         <input ref={speakerInputRef} className="line-speaker-input" type="text" value={line.speaker}
@@ -104,6 +115,7 @@ function LineEditorComponent(props: LineEditorProps) {
           onFocus={() => { setIsSpeakerFocused(true); setIsAutocompleteOpen(line.speaker.trim() !== ""); onBeginTextEdit(); onTextEditFocus(line.id) }}
           onBlur={() => { setIsSpeakerFocused(false); setIsAutocompleteOpen(false); commitSpeaker() }}
           onKeyDown={(event) => {
+            if (event.key === "Tab") { event.preventDefault(); onSwitchTextField(line.id, "speaker"); return }
             if (event.key === "ArrowDown" && filteredSpeakerOptions.length > 0) { event.preventDefault(); setIsAutocompleteOpen(true); setHighlightedIndex((index) => (index + 1) % filteredSpeakerOptions.length); return }
             if (event.key === "ArrowUp" && filteredSpeakerOptions.length > 0) { event.preventDefault(); setIsAutocompleteOpen(true); setHighlightedIndex((index) => index === 0 ? filteredSpeakerOptions.length - 1 : index - 1); return }
             if (event.key === "Escape" && isAutocompleteOpen) { event.preventDefault(); setIsAutocompleteOpen(false); return }
@@ -118,15 +130,18 @@ function LineEditorComponent(props: LineEditorProps) {
         <textarea ref={(element) => { contentElementRef.current = element; assignRef(contentInputRef, element) }} className="line-content-textarea line-content-field" value={line.content} rows={1} wrap="soft" placeholder={"\u8f93\u5165\u811a\u672c\u5185\u5bb9"}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) => { onContentChange(line.id, event.target.value); resizeTextarea(event.target) }}
-          onFocus={() => { onBeginTextEdit(); onTextEditFocus(line.id) }} onBlur={onEndTextEdit}
-          onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSpeakerCommit(line.id); onEndTextEdit(); onInsertBelow(line.id, "speaker") } }} />
+          onFocus={() => { setIsContentFocused(true); onBeginTextEdit(); onTextEditFocus(line.id) }} onBlur={() => { setIsContentFocused(false); onEndTextEdit() }}
+          onKeyDown={(event) => {
+            if (event.key === "Tab") { event.preventDefault(); onSwitchTextField(line.id, "content"); return }
+            if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSpeakerCommit(line.id); onEndTextEdit(); onInsertBelow(line.id, "speaker") }
+          }} />
       </div>
     </div>
   )
 }
 
 function areLineEditorPropsEqual(previousProps: LineEditorProps, nextProps: LineEditorProps) {
-  return previousProps.line === nextProps.line && previousProps.speakerColor === nextProps.speakerColor && previousProps.speakerOptions === nextProps.speakerOptions && previousProps.readingWrapChars === nextProps.readingWrapChars && previousProps.editorFontSize === nextProps.editorFontSize && previousProps.isActive === nextProps.isActive && previousProps.isSearchCurrent === nextProps.isSearchCurrent && previousProps.isDimmed === nextProps.isDimmed && previousProps.isRangeSelected === nextProps.isRangeSelected
+  return previousProps.line === nextProps.line && previousProps.speakerColor === nextProps.speakerColor && previousProps.speakerOptions === nextProps.speakerOptions && previousProps.readingWrapChars === nextProps.readingWrapChars && previousProps.editorFontSize === nextProps.editorFontSize && previousProps.isActive === nextProps.isActive && previousProps.isSearchCurrent === nextProps.isSearchCurrent && previousProps.isDimmed === nextProps.isDimmed && previousProps.isRangeSelected === nextProps.isRangeSelected && previousProps.isSingleFocusRange === nextProps.isSingleFocusRange
 }
 
 export const LineEditor = memo(LineEditorComponent, areLineEditorPropsEqual)

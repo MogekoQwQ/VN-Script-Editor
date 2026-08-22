@@ -61,6 +61,8 @@ export function Editor(props: EditorProps) {
     return new Set(lines.slice(start, end + 1).map((line) => line.id))
   }, [lineRangeSelection, lines])
   const speakerOptions = useMemo(() => buildSpeakerSuggestions(lines, characters, ""), [lines, characters])
+  const isSingleFocusRange =
+    lineRangeSelection?.anchorLineId === lineRangeSelection?.focusLineId
 
   useEffect(() => {
     if (!typewriterMode || !activeLineId) return
@@ -114,6 +116,14 @@ export function Editor(props: EditorProps) {
     setIsRangeDragging(true)
   }
 
+  const handleSwitchTextField = (lineId: string, currentField: FocusField) => {
+    const target = currentField === "speaker"
+      ? contentInputRefs.current[lineId]
+      : speakerInputRefs.current[lineId]
+
+    target?.focus()
+  }
+
   return (
     <main className={`panel panel-editor ${isRangeDragging ? "is-range-dragging" : ""}`.trim()}>
       <div className="panel-header"><h2>{"\u811a\u672c\u7f16\u8f91\u533a"}</h2></div>
@@ -132,7 +142,9 @@ export function Editor(props: EditorProps) {
             isActive={activeLineId === line.id} isSearchCurrent={searchMatchLineId === line.id}
             isDimmed={typewriterMode && activeLineId !== null && activeLineId !== line.id}
             isRangeSelected={lineIdsInRange.has(line.id)}
+            isSingleFocusRange={isSingleFocusRange}
             onInsertBelow={onInsertLineBelow}
+            onSwitchTextField={handleSwitchTextField}
             containerRef={(element) => { lineRefs.current[line.id] = element }}
             speakerInputRef={(element) => { speakerInputRefs.current[line.id] = element }}
             contentInputRef={(element) => { contentInputRefs.current[line.id] = element }} />

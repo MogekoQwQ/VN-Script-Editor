@@ -142,6 +142,7 @@ function CharacterRow({
         type="button"
         className="character-drag-handle"
         title={LABELS.drag}
+        tabIndex={-1}
         draggable
         onDragStart={(event) => onDragStart(displayName, event)}
         onDragEnd={onDragEnd}
