@@ -4,6 +4,8 @@ import { isNarrationSpeaker, isRoleSpeaker } from "./lineTypes"
 export type ProjectStats = {
   totalChars: number
   bodyChars: number
+  totalLines: number
+  bodyLines: number
 }
 
 function countContentChars(content: string) {
@@ -17,16 +19,20 @@ export function calculateStats(project: VNProject): ProjectStats {
       const charCount = countContentChars(line.content)
 
       stats.totalChars += charCount
+      stats.totalLines += 1
 
       if (isNarrationSpeaker(speaker) || isRoleSpeaker(speaker)) {
         stats.bodyChars += charCount
+        stats.bodyLines += 1
       }
 
       return stats
     },
     {
       totalChars: 0,
-      bodyChars: 0
+      bodyChars: 0,
+      totalLines: 0,
+      bodyLines: 0
     }
   )
 }

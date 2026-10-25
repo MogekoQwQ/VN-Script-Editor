@@ -3,10 +3,10 @@ import type { ScriptLine } from "../types"
 import { getHeadingLevel } from "../utils/lineTypes"
 import { parseScriptStructure } from "../utils/scriptStructure"
 
-type OutlineProps = { lines: ScriptLine[]; activeLineId: string | null; onSelectLine: (lineId: string) => void }
+type OutlineProps = { lines: ScriptLine[]; activeLineId: string | null; onSelectLine: (lineId: string) => void; isCollapsed: boolean; onToggleCollapsed: () => void }
 type OutlineNode = { id: string; title: string; depth: number; level?: number; children: OutlineNode[] }
 
-function OutlineComponent({ lines, activeLineId, onSelectLine }: OutlineProps) {
+function OutlineComponent({ lines, activeLineId, onSelectLine, isCollapsed, onToggleCollapsed }: OutlineProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const tree = useMemo(() => {
     const roots: OutlineNode[] = []
@@ -41,6 +41,13 @@ function OutlineComponent({ lines, activeLineId, onSelectLine }: OutlineProps) {
     </div>
     {!collapsed.has(node.id) ? node.children.map(renderNode) : null}
   </div>
-  return <aside className="panel panel-outline"><div className="panel-header"><h2>目录</h2></div><div className="outline-list">{tree.length ? tree.map(renderNode) : <p className="empty-state">当前还没有可显示的标题或 Menu。</p>}</div></aside>
+  return <aside className={`panel panel-outline ${isCollapsed ? "is-collapsed" : ""}`}>
+    <div className="panel-header panel-collapse-header"><h2>目录</h2>
+      <button type="button" className="panel-collapse-toggle" aria-label={isCollapsed ? "展开目录" : "收起目录"} aria-expanded={!isCollapsed} aria-controls="outline-content" onClick={onToggleCollapsed}>
+        <span className="collapse-arrow-side" aria-hidden="true">{isCollapsed ? "›" : "‹"}</span><span className="collapse-arrow-top" aria-hidden="true">{isCollapsed ? "▾" : "▴"}</span><span className="panel-restore-label">目录</span>
+      </button>
+    </div>
+    <div id="outline-content" className="outline-list" hidden={isCollapsed}>{tree.length ? tree.map(renderNode) : <p className="empty-state">当前还没有可显示的标题或 Menu。</p>}</div>
+  </aside>
 }
 export const Outline = memo(OutlineComponent)

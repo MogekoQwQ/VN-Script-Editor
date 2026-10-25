@@ -4,6 +4,7 @@ import type { SpeakerSuggestion } from "../utils/characters"
 import { getHeadingLevel, isNarrationSpeaker, isNoteSpeaker } from "../utils/lineTypes"
 import type { FocusField } from "./Editor"
 import { SpeakerAutocomplete } from "./SpeakerAutocomplete"
+import { observeTextareaWidth, resizeTextarea } from "../utils/textareaLayout"
 
 type LineEditorProps = {
   line: ScriptLine
@@ -49,12 +50,6 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   ;(ref as { current: T | null }).current = value
 }
 
-function resizeTextarea(element: HTMLTextAreaElement | null) {
-  if (!element) return
-  element.style.height = "0px"
-  element.style.height = `${element.scrollHeight}px`
-}
-
 function LineEditorComponent(props: LineEditorProps) {
   const {
     line, speakerColor, speakerOptions, readingWrapChars, editorFontSize,
@@ -76,18 +71,11 @@ function LineEditorComponent(props: LineEditorProps) {
     return speakerOptions.filter((option) => option.matchValues.some((value) => value.includes(query)))
   }, [line.speaker, speakerOptions])
 
-  useLayoutEffect(() => { resizeTextarea(contentElementRef.current) }, [line.content, variant, readingWrapChars, editorFontSize, isActive, isRangeSelected])
+  useLayoutEffect(() => { resizeTextarea(contentElementRef.current) }, [line.content, variant, readingWrapChars, editorFontSize])
   useLayoutEffect(() => {
     const element = contentElementRef.current
-    if (!element || typeof ResizeObserver === "undefined") return
-    const observer = new ResizeObserver(() => resizeTextarea(element))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-  useLayoutEffect(() => {
-    const handleResize = () => resizeTextarea(contentElementRef.current)
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
+    if (!element) return
+    return observeTextareaWidth(element)
   }, [])
 
   const commitSpeaker = () => { onSpeakerCommit(line.id); onEndTextEdit() }

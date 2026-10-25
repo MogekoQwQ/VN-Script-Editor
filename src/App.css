@@ -43,12 +43,20 @@ code {
 }
 
 .app-shell {
+  --layout-gap: clamp(8px, 1.2vw, 18px);
+  --layout-padding: clamp(8px, 1.2vw, 18px);
+  --outline-width: clamp(170px, 15vw, 220px);
+  --sidebar-width: clamp(260px, 23vw, 320px);
+  --editor-inline-start: calc(var(--layout-padding) + var(--outline-width) + var(--layout-gap) + 1px);
+  --editor-center-offset: calc(50vw - 530px - var(--editor-inline-start));
   display: grid;
-  grid-template-columns: clamp(170px, 15vw, 220px) minmax(0, 1fr) clamp(260px, 23vw, 320px);
-  gap: clamp(8px, 1.2vw, 18px);
+  width: 100%;
+  max-width: 100%;
+  grid-template-columns: var(--outline-width) minmax(0, 1fr) var(--sidebar-width);
+  gap: var(--layout-gap);
   height: 100vh;
   height: 100dvh;
-  padding: clamp(8px, 1.2vw, 18px);
+  padding: var(--layout-padding);
 }
 
 .panel {
@@ -186,8 +194,10 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: min(100%, 1060px);
-  margin: 0 auto 8px;
+  width: 100%;
+  max-width: 1060px;
+  margin: 0 0 8px;
+  margin-left: clamp(0px, var(--editor-center-offset), max(0px, calc(100% - 1060px)));
   padding: 0 24px;
   color: #6b7280;
   font-size: 12px;
@@ -224,8 +234,10 @@ code {
   display: grid;
   grid-template-columns: var(--selector-column) 8rem minmax(0, 1fr);
   gap: 16px;
-  width: min(100%, 1060px);
-  margin: 0 auto;
+  width: 100%;
+  max-width: 1060px;
+  margin: 0;
+  margin-left: clamp(0px, var(--editor-center-offset), max(0px, calc(100% - 1060px)));
   padding: 0 24px 10px;
   color: #8a94a6;
   font-size: 11px;
@@ -242,13 +254,18 @@ code {
 .editor-scroll-area {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
   padding: 0 8px 18px;
 }
 
 .editor-list {
-  width: min(100%, 1060px);
-  margin: 0 auto;
+  width: 100%;
+  max-width: 1060px;
+  margin: 0;
+  margin-left: clamp(0px, calc(var(--editor-center-offset) - 8px), max(0px, calc(100% - 1060px)));
   padding: 16vh 24px 28vh;
   background: #fffdfb;
   border: 1px solid rgba(203, 213, 225, 0.4);
@@ -1127,6 +1144,28 @@ code {
   user-select: none;
 }
 
+.app-shell.is-outline-collapsed { --outline-width: 32px; }
+.app-shell.is-sidebar-collapsed { --sidebar-width: 32px; }
+.panel-collapse-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 8px; }
+.panel-collapse-toggle,
+.right-panel .panel-collapse-toggle { display: flex; align-items: center; justify-content: center; width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #64748b; font-size: 18px; }
+.panel-collapse-toggle:hover { background: rgba(100, 116, 139, 0.08); }
+.panel-collapse-toggle:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; }
+.panel-restore-label,
+.collapse-arrow-top { display: none; }
+.panel.is-collapsed .panel-collapse-header { padding: 4px 0; justify-content: center; }
+.panel.is-collapsed .panel-collapse-header h2 { display: none; }
+.panel.is-collapsed .panel-collapse-toggle { flex-direction: column; width: 100%; gap: 6px; }
+.panel.is-collapsed .panel-restore-label { display: block; writing-mode: vertical-rl; font-size: 12px; }
+.outline-list[hidden],
+.sidebar-contents[hidden] { display: none; }
+.right-panel { overflow: hidden; }
+.sidebar-contents { min-height: 0; min-width: 0; flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+
+@supports not (scrollbar-gutter: stable) {
+  .sidebar-contents { overflow-y: scroll; }
+}
+
 @media (max-width: 1260px) {
   .panel-outline { --outline-indent: 0.35rem; }
   .panel-header { padding: 12px 14px 8px; }
@@ -1141,9 +1180,17 @@ code {
 
 @media (max-width: 960px) {
   .app-shell {
-    grid-template-columns: minmax(0, 1fr) 260px;
+    --editor-inline-start: calc(var(--layout-padding) + 1px);
+    --sidebar-width: 260px;
+    grid-template-columns: minmax(0, 1fr) var(--sidebar-width);
     grid-template-rows: minmax(70px, 18vh) minmax(0, 1fr);
   }
+  .app-shell.is-sidebar-collapsed { --sidebar-width: 32px; }
+  .app-shell.is-outline-collapsed { grid-template-rows: 32px minmax(0, 1fr); }
+  .panel-outline .collapse-arrow-side { display: none; }
+  .panel-outline .collapse-arrow-top { display: inline; }
+  .panel-outline.is-collapsed .panel-collapse-toggle { flex-direction: row; }
+  .panel-outline.is-collapsed .panel-restore-label { writing-mode: horizontal-tb; }
   .panel-outline { grid-column: 1 / -1; }
   .panel-outline .panel-header { padding-bottom: 4px; }
   .panel-outline .outline-list { padding-bottom: 6px; }
@@ -1161,6 +1208,13 @@ code {
     height: auto;
     min-height: 100dvh;
   }
+  .app-shell.is-outline-collapsed { grid-template-rows: 32px minmax(360px, 68dvh) auto; }
+  .app-shell.is-sidebar-collapsed { grid-template-rows: minmax(90px, 18dvh) minmax(360px, 68dvh) 32px; }
+  .app-shell.is-outline-collapsed.is-sidebar-collapsed { grid-template-rows: 32px minmax(360px, 68dvh) 32px; }
+  .panel-sidebar .collapse-arrow-side { display: none; }
+  .panel-sidebar .collapse-arrow-top { display: inline; }
+  .panel-sidebar.is-collapsed .panel-collapse-toggle { flex-direction: row; }
+  .panel-sidebar.is-collapsed .panel-restore-label { writing-mode: horizontal-tb; }
   .panel-sidebar { max-height: 65dvh; }
   .editor-column-labels,
   .line-editor {

@@ -14,12 +14,10 @@ type SavePanelProps = {
 const TEXT = {
   projectName: "\u9879\u76EE\u540D\u79F0",
   status: "\u4fdd\u5b58\u72b6\u6001",
-  export: "\u5bfc\u51fa\u9879\u76ee\u6587\u4ef6",
-  import: "\u5bfc\u5165\u9879\u76ee\u6587\u4ef6",
-  insertPlainText: "从纯文本插入",
-  blank: "\u65b0\u5efa\u7a7a\u767d\u9879\u76ee",
-  reset: "\u91cd\u7f6e\u4e3a\u793a\u4f8b\u9879\u76ee",
-  clear: "\u6e05\u9664\u672c\u5730\u81ea\u52a8\u4fdd\u5b58"
+  export: "导出项目",
+  import: "导入项目",
+  blank: "新建项目",
+  reset: "重置为示例项目"
 }
 
 export function SavePanel({
@@ -29,8 +27,7 @@ export function SavePanel({
   onExportProjectFile,
   onImportProjectFile,
   onCreateBlankProject,
-  onResetToDefaultProject,
-  onClearLocalProject
+  onResetToDefaultProject
 }: SavePanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -65,14 +62,11 @@ export function SavePanel({
         <button type="button" onClick={() => fileInputRef.current?.click()}>
           {TEXT.import}
         </button>
-        <button type="button" onClick={onClearLocalProject}>
-          {TEXT.clear}
+        <button type="button" onClick={onCreateBlankProject}>
+          {TEXT.blank}
         </button>
         <button type="button" onClick={onResetToDefaultProject}>
           {TEXT.reset}
-        </button>
-        <button type="button" onClick={onCreateBlankProject}>
-          {TEXT.blank}
         </button>
       </div>
 

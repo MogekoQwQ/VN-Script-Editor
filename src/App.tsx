@@ -215,6 +215,9 @@ export default function App() {
   const [activeLineId, setActiveLineId] = useState<string | null>(initialLineId)
   const [lastFocusedLineId, setLastFocusedLineId] = useState<string | null>(initialLineId)
   const [typewriterMode, setTypewriterMode] = useState(false)
+  const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0)
   const [focusRequest, setFocusRequest] = useState<FocusTarget>(null)
   const [scrollRequest, setScrollRequest] = useState<ScrollTarget>(null)
   const [lineRangeSelection, setLineRangeSelection] = useState<LineRangeSelection | null>(
@@ -1194,9 +1197,13 @@ const handleInsertPlainText = ({
 
       if (isShortcutPressed && shortcutKey === "f") {
         event.preventDefault()
+        setIsSidebarCollapsed(false)
+        setSearchFocusRequest((request) => request + 1)
         setIsSearchFocused(true)
-        searchInputRef.current?.focus()
-        searchInputRef.current?.select()
+        requestAnimationFrame(() => {
+          searchInputRef.current?.focus()
+          searchInputRef.current?.select()
+        })
         return
       }
 
@@ -1256,8 +1263,10 @@ const handleInsertPlainText = ({
   }, [project.lines, searchMatches.length])
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isOutlineCollapsed ? "is-outline-collapsed" : ""} ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
       <Outline
+        isCollapsed={isOutlineCollapsed}
+        onToggleCollapsed={() => setIsOutlineCollapsed((collapsed) => !collapsed)}
         key={`outline-${editorSession}`}
         lines={project.lines}
         activeLineId={activeLineId}
@@ -1298,6 +1307,9 @@ const handleInsertPlainText = ({
       />
 
       <RightPanel
+        searchFocusRequest={searchFocusRequest}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapsed={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
         project={project}
         activeSpeakers={orderedActiveSpeakers}
         characters={project.characters}

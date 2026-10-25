@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type Ref } from "react"
+import { useEffect, useLayoutEffect, useState, type ReactNode, type Ref } from "react"
 import type { CharacterMap, CharacterProfile, ScriptLine, VNProject } from "../types"
 import { AboutPanel } from "./AboutPanel"
 import { CharacterMapEditor } from "./CharacterMapEditor"
@@ -9,6 +9,9 @@ import { SearchReplacePanel } from "./SearchReplacePanel"
 import { StatsPanel } from "./StatsPanel"
 
 type RightPanelProps = {
+  isCollapsed: boolean
+  searchFocusRequest: number
+  onToggleCollapsed: () => void
   project: VNProject
   activeSpeakers: string[]
   characters: CharacterMap
@@ -98,6 +101,9 @@ function Section({ title, open, onToggle, children }: SectionProps) {
 }
 
 export function RightPanel({
+  isCollapsed,
+  searchFocusRequest,
+  onToggleCollapsed,
   project,
   activeSpeakers,
   characters,
@@ -149,6 +155,10 @@ export function RightPanel({
     about: false
   })
 
+  useLayoutEffect(() => {
+    if (searchFocusRequest > 0) setOpenSections((sections) => ({ ...sections, search: true }))
+  }, [searchFocusRequest])
+
   useEffect(() => {
     setReadingWrapInput(String(project.settings.readingWrapChars ?? 32))
   }, [project.settings.readingWrapChars])
@@ -187,7 +197,13 @@ export function RightPanel({
   }
 
   return (
-    <aside className="panel panel-sidebar right-panel">
+    <aside className={`panel panel-sidebar right-panel ${isCollapsed ? "is-collapsed" : ""}`}>
+      <div className="panel-header panel-collapse-header"><h2>工具</h2>
+        <button type="button" className="panel-collapse-toggle" aria-label={isCollapsed ? "展开右侧面板" : "收起右侧面板"} aria-expanded={!isCollapsed} aria-controls="sidebar-content" onClick={onToggleCollapsed}>
+          <span className="collapse-arrow-side" aria-hidden="true">{isCollapsed ? "‹" : "›"}</span><span className="collapse-arrow-top" aria-hidden="true">{isCollapsed ? "▾" : "▴"}</span><span className="panel-restore-label">工具</span>
+        </button>
+      </div>
+      <div id="sidebar-content" className="sidebar-contents" hidden={isCollapsed}>
       <Section title={LABELS.save} open={openSections.save} onToggle={() => toggleSection("save")}>
         <SavePanel
           projectTitle={project.title}
@@ -326,6 +342,7 @@ export function RightPanel({
       >
         <AboutPanel />
       </Section>
+      </div>
     </aside>
   )
 }
