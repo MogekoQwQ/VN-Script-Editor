@@ -471,7 +471,9 @@ export default function App() {
     setIsTextEditing(false)
   }
 
+  const [editorSession, setEditorSession] = useState(0)
   const replaceProjectState = (nextProject: VNProject, saveMessage: string) => {
+    setEditorSession((session) => session + 1)
     pendingEditSnapshotRef.current = null
     setProjectDirect(nextProject)
     setUndoHistory([])
@@ -663,9 +665,11 @@ export default function App() {
     })
   }
 
+  const rangeVisibilityGuard = useRef<(() => boolean) | null>(null)
   const getRangeLines = () => getLineRange(projectRef.current.lines, lineRangeSelectionRef.current)
 
   const handleCopyRange = () => {
+    if (rangeVisibilityGuard.current?.() === false) return
     const copiedLines = getRangeLines().map((line) => ({ ...line }))
     if (copiedLines.length === 0) return
     setLineClipboard({
@@ -676,17 +680,20 @@ export default function App() {
   }
 
   const removeCurrentRange = () => {
+    if (rangeVisibilityGuard.current?.() === false) return
     const selectedLines = getRangeLines()
     if (selectedLines.length === 0) return
     removeLineIds(selectedLines.map((line) => line.id))
   }
 
   const handleCutRange = () => {
+    if (rangeVisibilityGuard.current?.() === false) return
     handleCopyRange()
     removeCurrentRange()
   }
 
   const pasteAtScriptLevel = async () => {
+    if (rangeVisibilityGuard.current?.() === false) return
     const systemText = await readExternalPlainText()
     const internalClipboard = lineClipboardRef.current
     const normalizedSystemText = systemText?.replace(/\r\n/g, "\n") ?? null
@@ -1251,12 +1258,15 @@ const handleInsertPlainText = ({
   return (
     <div className="app-shell">
       <Outline
+        key={`outline-${editorSession}`}
         lines={project.lines}
         activeLineId={activeLineId}
         onSelectLine={handleSelectOutlineLine}
       />
 
       <Editor
+        key={`editor-${editorSession}`}
+        rangeVisibilityGuard={rangeVisibilityGuard}
         lines={project.lines}
         characters={project.characters}
         readingWrapChars={project.settings.readingWrapChars}

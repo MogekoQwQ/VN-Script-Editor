@@ -3,10 +3,10 @@ import type { VNProject } from "../types"
 
 export const defaultProject: VNProject = {
   version: 1,
-  title: "视觉小说脚本编辑器示例",
+  title: "脚本编辑器功能示例",
   characters: {
-    Mogeko: {
-      id: "mogeko",
+    作者: {
+      id: "writer",
       color: "#990E00"
     },
     助手: {
@@ -18,120 +18,134 @@ export const defaultProject: VNProject = {
     {
       id: "line_1",
       speaker: "#1",
-      content: "视觉小说脚本编辑器示例"
+      content: "脚本编辑器功能示例"
     },
     {
       id: "line_2",
       speaker: "",
       content:
-        "这个示例项目会展示基本写法。左边填写说话人，右边填写正文；说话人为空时，这一行就是旁白。"
+        "本项目用于演示脚本行、角色映射、行范围操作、Menu、章节折叠及保存导出功能。示例内容可直接编辑。"
     },
     {
       id: "line_3",
-      speaker: "Mogeko",
-      content: "角色台词会根据右侧的角色映射导出为 Ren'Py 角色 ID。"
+      speaker: "作者",
+      content: "左边是说话人，右边是正文。说话人留空，就是旁白。"
     },
     {
       id: "line_4",
       speaker: "助手",
       content:
-        "例如我的显示名是“助手”，导出 ID 是 helper，所以 Ren'Py 导出时会变成 helper \"……\"。"
+        "右侧角色映射保存显示名、导出 ID 和颜色。例如“助手”使用 helper 作为 Ren'Py 导出 ID。"
     },
     {
       id: "line_5",
       speaker: "#",
-      content: "说话人填 # 时，这一行会作为备注导出为 Ren'Py 注释。"
+      content: "备注可以记录音效、画面和演出提示。导出 Ren'Py 时，它会成为代码注释。"
     },
     {
       id: "line_6",
       speaker: "#2",
-      content: "写作和编辑"
+      content: "文本编辑"
     },
     {
       id: "line_7",
-      speaker: "Mogeko",
+      speaker: "作者",
       content: "按 Enter 可以在当前行下方新增一行，并把光标移动到新行的说话人栏。"
     },
     {
       id: "line_8",
       speaker: "助手",
-      content: "在内容栏里按 Shift + Enter，可以手动输入换行。"
+      content: "Shift + Enter 在同一条正文中手动换行。\nTab 或 Shift + Tab 在当前行的说话人与正文之间切换。"
     },
     {
       id: "line_9",
       speaker: "",
-      content: "右侧的“每行字数”只影响编辑器中的阅读宽度，不会真的往文本里插入换行符。"
+      content: "“每行字数”控制阅读宽度，“文字大小”控制编辑区字号。自动换行只改变显示，不会往正文插入换行符。"
     },
     {
       id: "line_10",
       speaker: "#3",
-      content: "选择模式"
+      content: "连续行范围操作"
     },
     {
       id: "line_11",
-      speaker: "Mogeko",
-      content: "双击任意行可以进入选择模式。"
+      speaker: "作者",
+      content: "点击行左侧的空白选择栏，可以选中整行。按住并上下拖动，或按 Shift 点击另一行，可以选中连续范围。"
     },
     {
       id: "line_12",
       speaker: "助手",
       content:
-        "进入选择模式后，左侧会出现复选框。普通点击可以复选，Shift 点击可以选择或取消一个范围。"
+        "未编辑输入框时，上方工具条显示行范围操作。剪切、复制和删除作用于当前范围，粘贴插入到范围最后一行下方。点击输入框后恢复文字编辑。"
     },
     {
       id: "line_13",
-      speaker: "Mogeko",
-      content: "选择多行后，可以剪切、复制、粘贴、删除、上移或下移。"
+      speaker: "作者",
+      content: "输入框内粘贴保持普通文字编辑行为。需要把多行文字拆成脚本行时，请使用右侧“从纯文本插入”，检查匹配规则并确认说话人后再插入。"
     },
     {
       id: "line_14",
       speaker: "#4",
-      content: "单行菜单"
+      content: "撤销与重做"
     },
     {
       id: "line_15",
       speaker: "助手",
-      content: "每一行右侧的菜单可以插入行、剪切行、复制行、粘贴行、移动行或删除行。"
+      content: "剪切、删除、插入和替换都可以撤销。Ctrl / Cmd + Z 撤销，Ctrl / Cmd + Shift + Z 重做。"
     },
+    { id: "example_menu_heading", speaker: "#2", content: "Menu 结构示例" },
+    { id: "example_menu_intro", speaker: "", content: "下面是一段完整的 Menu。特殊标记写在说话人栏里，每个选项后面的剧情一直延续到下一个选项或结束标记。" },
+    { id: "example_menu", speaker: "#menu", content: "选项提示文本" },
+    { id: "example_option_write", speaker: "#option", content: "选项一：台词与旁白" },
+    { id: "example_write_dialogue", speaker: "作者", content: "此台词属于选项一。" },
+    { id: "example_write_narration", speaker: "", content: "此旁白也属于选项一。下一个 #option 标记结束该选项的内容范围。" },
+    { id: "example_option_read", speaker: "#option", content: "选项二：台词与备注" },
+    { id: "example_read_dialogue", speaker: "助手", content: "此台词属于选项二。" },
+    { id: "example_read_note", speaker: "#", content: "此备注属于选项二，导出时生成注释。" },
+    { id: "example_endmenu", speaker: "#endmenu", content: "" },
+    { id: "example_common", speaker: "", content: "此行位于 #endmenu 之后，属于共通内容。导出时恢复 Menu 外的缩进。" },
+    { id: "example_fold_heading", speaker: "#3", content: "正文折叠与目录导航" },
+    { id: "example_fold_body", speaker: "助手", content: "点击正文标题或 #menu 左侧的小箭头可以折叠内容。展开父章节后，子章节和 Menu 会保留原来的折叠状态。" },
+    { id: "example_outline_body", speaker: "", content: "左侧目录可以分别收起章节和选项列表。点击标题、Menu 或选项名称会跳转到对应行，必要时自动展开正文。折叠不会删除文字，也不会影响导出。" },
     {
       id: "line_16",
       speaker: "#2",
-      content: "保存和查找"
+      content: "项目保存与查找"
     },
     {
       id: "line_17",
       speaker: "",
-      content: "编辑内容会自动保存在当前浏览器中。为了避免浏览器数据丢失，重要项目建议定期导出项目文件。"
+      content: "右侧“保存”中的项目名称用于生成导出文件名。项目自动保存在当前浏览器；项目文件包含完整数据，可用于备份和重新导入。"
     },
     {
       id: "line_18",
-      speaker: "Mogeko",
-      content: "右侧“保存”面板可以导出或导入项目文件。项目文件是完整源文件，适合备份和继续编辑。"
+      speaker: "作者",
+      content: "清理浏览器数据可能丢失自动保存。重要内容请定期导出项目文件备份。"
     },
     {
       id: "line_19",
       speaker: "助手",
-      content: "查找替换可以搜索说话人和正文，也可以批量替换文本。替换操作可以撤销。"
+      content: "Ctrl / Cmd + F 打开查找。查找替换同时搜索说话人和正文，替换后也可以撤销。"
     },
     {
       id: "line_20",
-      speaker: "#2",
-      content: "导出"
+      speaker: "#3",
+      content: "导出阅读稿和脚本片段"
     },
     {
       id: "line_21",
-      speaker: "Mogeko",
-      content: "Ren'Py 导出会生成脚本片段，可以复制到 Ren'Py 工程里继续整理。"
+      speaker: "作者",
+      content: "Ren'Py 导出会生成脚本片段，Menu 会生成选项和剧情缩进；如果结构不完整，会提示具体行号。片段仍需放进自己的 Ren'Py 工程中整理。"
     },
     {
       id: "line_22",
       speaker: "助手",
-      content: "PDF 阅读稿会打开一个预览页，你可以在预览页里打印或保存为 PDF，用来试读和校对。"
+      content: "“打开 PDF 阅读稿”会打开预览页。点击预览页顶部的打印按钮，选择保存为 PDF，即可用于试读或校对。"
     },
     {
       id: "line_23",
-      speaker: "#",
-      content: "这里可以写演出、立绘、变量或跳转提示，之后再进入 Ren'Py 编辑器手动修改。"
+      speaker: "作者",
+      content: "“新建空白项目”创建空白脚本。“重置为示例项目”恢复本示例。两项操作均会替换当前项目，执行前应导出需要保留的内容。"
     }
   ],
   settings: {

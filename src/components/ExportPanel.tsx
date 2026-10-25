@@ -3,6 +3,7 @@ import type { VNProject } from "../types"
 import { buildPrintableHtml, openPrintWindow } from "../utils/exportPdfHtml"
 import { exportRenpy } from "../utils/exportRenpy"
 import { sanitizeFilenamePart } from "../utils/filenames"
+import { parseScriptStructure } from "../utils/scriptStructure"
 
 type ExportPanelProps = {
   project: VNProject
@@ -54,18 +55,22 @@ export function ExportPanel({ project, onExportHeadingsChange }: ExportPanelProp
     try {
       await navigator.clipboard.writeText(buildRenpyOutput())
       setRenpyStatus(TEXT.copied)
-    } catch {
-      setRenpyStatus(TEXT.copyFailed)
+    } catch (error) {
+      setRenpyStatus(error instanceof Error ? error.message : TEXT.copyFailed)
     }
   }
 
   const handleDownloadRenpy = () => {
+    try {
     downloadTextFile(
       buildRenpyOutput(),
       buildDownloadName(project.title, ".rpy.txt"),
       "text/plain;charset=utf-8"
     )
     setRenpyStatus(TEXT.downloaded)
+    } catch (error) {
+      setRenpyStatus(error instanceof Error ? error.message : "导出失败")
+    }
   }
 
   const handleOpenPdfPreview = () => {
@@ -110,7 +115,7 @@ export function ExportPanel({ project, onExportHeadingsChange }: ExportPanelProp
           </button>
         </div>
 
-        <div className="export-status">{renpyStatus || " "}</div>
+        <div className="export-status" style={{ whiteSpace: "pre-wrap" }}>{renpyStatus || " "}{parseScriptStructure(project.lines).issues.filter((issue) => issue.warning).map((issue) => <div key={issue.line}>第 {issue.line} 行：{issue.message}</div>)}</div>
       </div>
 
       <div className="export-group">

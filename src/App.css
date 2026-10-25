@@ -22,7 +22,7 @@ body,
 }
 
 body {
-  min-width: 1120px;
+  min-width: 320px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0)) fixed,
     #eceff3;
@@ -44,16 +44,18 @@ code {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 320px;
-  gap: 18px;
+  grid-template-columns: clamp(170px, 15vw, 220px) minmax(0, 1fr) clamp(260px, 23vw, 320px);
+  gap: clamp(8px, 1.2vw, 18px);
   height: 100vh;
-  padding: 18px;
+  height: 100dvh;
+  padding: clamp(8px, 1.2vw, 18px);
 }
 
 .panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 16px;
   background: rgba(250, 251, 252, 0.96);
@@ -107,6 +109,8 @@ code {
   background: transparent;
   color: #526171;
   text-align: left;
+  font-size: 12px;
+  font-weight: 400;
   line-height: 1.45;
   transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
   user-select: none;
@@ -178,6 +182,7 @@ code {
 
 .batch-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -235,6 +240,8 @@ code {
 }
 
 .editor-scroll-area {
+  flex: 1;
+  min-width: 0;
   overflow: auto;
   padding: 0 8px 18px;
 }
@@ -316,6 +323,27 @@ code {
   user-select: none;
   cursor: crosshair;
 }
+
+.line-gutter-cell { position: relative; width: 1.25rem; }
+.line-fold-toggle {
+  position: absolute;
+  inset: 0 auto auto -0.55rem;
+  width: 0.8rem;
+  min-height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #777;
+  font-size: 12px;
+  cursor: pointer;
+}
+.line-editor:has(.fold-summary) { position: relative; }
+.fold-summary { position: absolute; right: 0.45rem; top: 0.12rem; font-size: 0.8em; color: #777; pointer-events: none; }
+.outline-tree-row { display: flex; align-items: baseline; min-width: 0; }
+.outline-tree-row .outline-item { flex: 1; min-width: 0; padding-left: 0.25rem; text-align: left; }
+.outline-toggle { flex: 0 0 16px; width: 16px; padding: 0; border: 0; background: transparent; color: #777; font-size: 12px; }
+.outline-tree-row.is-active { box-shadow: inset 2px 0 #a0a0a0; }
 
 .line-gutter::before {
   width: 2px;
@@ -605,8 +633,8 @@ code {
 }
 
 .right-panel {
-  width: 320px;
-  max-width: 320px;
+  width: 100%;
+  max-width: 100%;
   font-size: 12px;
   line-height: 1.45;
   color: #222;
@@ -1100,38 +1128,43 @@ code {
 }
 
 @media (max-width: 1260px) {
-  body {
-    min-width: 0;
-  }
-
-  .app-shell {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100vh;
-  }
-
+  .panel-outline { --outline-indent: 0.35rem; }
+  .panel-header { padding: 12px 14px 8px; }
+  .batch-toolbar,
+  .editor-column-labels,
+  .editor-list { padding-left: 12px; padding-right: 12px; }
   .editor-list {
-    padding-top: 40px;
-    padding-bottom: 64px;
+    padding-top: clamp(24px, 8vh, 70px);
+    padding-bottom: clamp(32px, 12vh, 100px);
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 960px) {
   .app-shell {
-    gap: 12px;
-    padding: 12px;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    grid-template-rows: minmax(70px, 18vh) minmax(0, 1fr);
   }
-
-  .batch-toolbar,
+  .panel-outline { grid-column: 1 / -1; }
+  .panel-outline .panel-header { padding-bottom: 4px; }
+  .panel-outline .outline-list { padding-bottom: 6px; }
+  .batch-toolbar { gap: 6px; }
+  .batch-toolbar-actions { gap: 4px; }
+  .batch-toolbar button { padding: 3px 7px; }
   .editor-column-labels,
-  .editor-list {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
+  .line-editor { grid-template-columns: var(--selector-column) 5.5rem minmax(0, 1fr); column-gap: 8px; }
+}
 
+@media (max-width: 640px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(90px, 18dvh) minmax(360px, 68dvh) auto;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .panel-sidebar { max-height: 65dvh; }
   .editor-column-labels,
   .line-editor {
-    grid-template-columns: var(--selector-column) 1fr;
+    grid-template-columns: var(--selector-column) minmax(0, 1fr);
     gap: 6px;
   }
 
@@ -1139,6 +1172,10 @@ code {
   .speaker-autocomplete {
     grid-column: 2;
   }
+  .editor-list { padding: 20px 8px 40px; }
+  .editor-scroll-area { padding: 0 4px 8px; }
+  .batch-toolbar-actions { flex: 1 1 100%; }
+  .outline-tree-row .outline-item { overflow-wrap: anywhere; }
 
   .character-map-header,
   .character-row {

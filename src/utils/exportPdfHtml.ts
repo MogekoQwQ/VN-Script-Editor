@@ -1,5 +1,5 @@
 import type { CharacterProfile, VNProject } from "../types"
-import { getHeadingLevel, isHeadingSpeaker, isNarrationSpeaker, isNoteSpeaker, normalizeSpeaker } from "./lineTypes"
+import { getHeadingLevel, isHeadingSpeaker, isNarrationSpeaker, isNoteSpeaker, isMenuSpeaker, normalizeSpeaker } from "./lineTypes"
 import { resolveCharacterColor } from "./colors"
 
 export type PdfExportOptions = {
@@ -46,6 +46,11 @@ export function buildPrintableHtml(
     .map((line) => {
       const speaker = normalizeSpeaker(line.speaker)
       const content = line.content.trim()
+
+      if (isMenuSpeaker(speaker)) {
+        if (speaker === "#endmenu") return ""
+        return `<p class="vn-line"><strong>${speaker === "#menu" ? "Menu" : "选项"}：</strong>${formatHtmlText(content)}</p>`
+      }
 
       if (!content) {
         return ""

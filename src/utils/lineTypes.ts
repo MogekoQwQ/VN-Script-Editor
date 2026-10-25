@@ -20,7 +20,11 @@ export function isNarrationSpeaker(speaker: string): boolean {
 }
 
 export function isSpecialSpeaker(speaker: string): boolean {
-  return isNarrationSpeaker(speaker) || isNoteSpeaker(speaker) || isHeadingSpeaker(speaker)
+  return isNarrationSpeaker(speaker) || isNoteSpeaker(speaker) || isHeadingSpeaker(speaker) || isMenuSpeaker(speaker)
+}
+
+export function isMenuSpeaker(speaker: string): boolean {
+  return ["#menu", "#option", "#endmenu"].includes(normalizeSpeaker(speaker))
 }
 
 export function isCharacterSpeakerName(speaker: string): boolean {

@@ -96,6 +96,8 @@ function parseHashLine(line: string, mode: HashMatchMode): ParsedLine | null {
   }
 
   if (mode === "note-and-internal-heading") {
+    const marker = line.match(/^(#menu|#option|#endmenu)(?:[\t ]+|$)(.*)$/u)
+    if (marker) return { line: createScriptLine(marker[1], marker[2]), originalText: line, kind: "note" }
     const headingMatch = line.match(/^#([1-4])(?:[\t ]+|$)(.*)$/u)
     if (headingMatch) {
       return {
