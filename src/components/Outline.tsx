@@ -1,17 +1,18 @@
 import { memo, useMemo, useState } from "react"
 import type { ScriptLine } from "../types"
 import { getHeadingLevel } from "../utils/lineTypes"
-import { parseScriptStructure } from "../utils/scriptStructure"
+import type { ScriptStructure } from "../utils/scriptStructure"
 
-type OutlineProps = { lines: ScriptLine[]; activeLineId: string | null; onSelectLine: (lineId: string) => void; isCollapsed: boolean; onToggleCollapsed: () => void }
+type OutlineProps = { lines: ScriptLine[]; structure: ScriptStructure; activeLineId: string | null; onSelectLine: (lineId: string) => void; isCollapsed: boolean; onToggleCollapsed: () => void }
 type OutlineNode = { id: string; title: string; depth: number; level?: number; children: OutlineNode[] }
 
-function OutlineComponent({ lines, activeLineId, onSelectLine, isCollapsed, onToggleCollapsed }: OutlineProps) {
+function OutlineComponent({ lines, structure, activeLineId, onSelectLine, isCollapsed, onToggleCollapsed }: OutlineProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const tree = useMemo(() => {
     const roots: OutlineNode[] = []
     const headings: { level: number; node: OutlineNode }[] = []
-    const { blocks } = parseScriptStructure(lines)
+    const optionOwners = new Map<number, string>()
+    structure.blocks.filter((block) => block.kind === "menu").forEach((block) => block.options.forEach((index) => optionOwners.set(index, block.id)))
     const menuNodes = new Map<string, OutlineNode>()
     lines.forEach((line, index) => {
       const level = getHeadingLevel(line.speaker)
@@ -26,14 +27,14 @@ function OutlineComponent({ lines, activeLineId, onSelectLine, isCollapsed, onTo
         ;(parent?.node.children ?? roots).push(node)
         menuNodes.set(line.id, node)
       } else if (line.speaker.trim() === "#option") {
-        const owner = blocks.find((block) => block.kind === "menu" && block.options.includes(index))
-        const parent = owner && menuNodes.get(owner.id)
+        const ownerId = optionOwners.get(index)
+        const parent = ownerId ? menuNodes.get(ownerId) : undefined
         const node: OutlineNode = { id: line.id, title: line.content || "未命名选项", depth: parent ? parent.depth + 1 : 0, children: [] }
         ;(parent?.children ?? roots).push(node)
       }
     })
     return roots
-  }, [lines])
+  }, [lines, structure])
   const renderNode = (node: OutlineNode): React.ReactNode => <div key={node.id}>
     <div className={`outline-tree-row ${activeLineId === node.id ? "is-active" : ""}`} style={{ paddingLeft: `calc(${node.depth} * var(--outline-indent, 0.75rem))` }}>
       {node.children.length ? <button type="button" className="outline-toggle" aria-expanded={!collapsed.has(node.id)} aria-label="展开或折叠目录" onClick={() => setCollapsed((previous) => { const next = new Set(previous); if (next.has(node.id)) next.delete(node.id); else next.add(node.id); return next })}>{collapsed.has(node.id) ? "▸" : "▾"}</button> : <span className="outline-toggle" />}

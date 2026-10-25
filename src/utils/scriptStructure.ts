@@ -3,18 +3,21 @@ import { getHeadingLevel, isHeadingSpeaker, isNoteSpeaker } from "./lineTypes"
 
 export type ScriptBlock = { id: string; start: number; end: number; kind: "heading" | "menu"; level: number; options: number[]; complete: boolean }
 export type StructureIssue = { line: number; message: string; warning?: boolean }
+export type ScriptStructure = { blocks: ScriptBlock[]; issues: StructureIssue[] }
 
-export function parseScriptStructure(lines: ScriptLine[]) {
+export function parseScriptStructure(lines: ScriptLine[]): ScriptStructure {
   const blocks: ScriptBlock[] = []
   const issues: StructureIssue[] = []
   const stack: ScriptBlock[] = []
+  const headings: ScriptBlock[] = []
   const issue = (index: number, message: string) => issues.push({ line: index + 1, message })
   lines.forEach((line, index) => {
     const level = getHeadingLevel(line.speaker)
     if (level) {
-      let end = index + 1
-      while (end < lines.length && !(getHeadingLevel(lines[end].speaker) && getHeadingLevel(lines[end].speaker)! <= level)) end++
-      blocks.push({ id: line.id, start: index, end: end - 1, kind: "heading", level, options: [], complete: true })
+      while (headings.length && headings[headings.length - 1].level >= level) headings.pop()!.end = index - 1
+      const heading: ScriptBlock = { id: line.id, start: index, end: lines.length - 1, kind: "heading", level, options: [], complete: true }
+      blocks.push(heading)
+      headings.push(heading)
     }
     const speaker = line.speaker.trim()
     if (speaker === "#menu") {
@@ -48,7 +51,7 @@ export function parseScriptStructure(lines: ScriptLine[]) {
       if (!executable) issues.push({ line: index + 1, message: "选项没有可执行剧情，将导出 pass", warning: true })
     })
   })
-  return { blocks: blocks.sort((a, b) => a.start - b.start), issues }
+  return { blocks, issues }
 }
 
 export function hiddenLineIds(lines: ScriptLine[], blocks: ScriptBlock[], collapsed: Set<string>) {
@@ -61,5 +64,6 @@ export function hiddenLineIds(lines: ScriptLine[], blocks: ScriptBlock[], collap
 }
 
 export function revealLineIndices(blocks: ScriptBlock[], collapsed: Set<string>, indices: number[]) {
-  return new Set([...collapsed].filter((id) => !blocks.some((block) => block.id === id && indices.some((index) => block.start < index && index <= block.end))))
+  const next = new Set([...collapsed].filter((id) => !blocks.some((block) => block.id === id && indices.some((index) => block.start < index && index <= block.end))))
+  return next.size === collapsed.size ? collapsed : next
 }

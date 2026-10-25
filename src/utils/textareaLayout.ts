@@ -18,6 +18,7 @@ function queueResize(element: HTMLTextAreaElement) {
     // Batch writes and reads so resizing many rows only measures layout once.
     elements.forEach((item) => { item.style.height = "0px" })
     const heights = elements.map((item) => item.scrollHeight)
+    elements.forEach((item) => widths.set(item, item.clientWidth))
     elements.forEach((item, index) => { item.style.height = `${heights[index]}px` })
   })
 }
@@ -31,9 +32,9 @@ export function observeTextareaWidth(element: HTMLTextAreaElement) {
   observer ??= new ResizeObserver((entries) => {
     entries.forEach((entry) => {
       const target = entry.target as HTMLTextAreaElement
-      const width = entry.contentRect.width
+      const width = Math.round(entry.contentRect.width)
       // Height changes are caused by auto-sizing itself; never observe them again.
-      if (widths.get(target) === width) return
+      if (width <= 0 || widths.get(target) === width) return
       widths.set(target, width)
       queueResize(target)
     })

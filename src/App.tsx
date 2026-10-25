@@ -39,6 +39,7 @@ import {
   resolveCharacterDisplayOrder
 } from "./utils/characters"
 import { isRoleSpeaker } from "./utils/lineTypes"
+import { parseScriptStructure } from "./utils/scriptStructure"
 
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type FocusTarget = FocusRequest | null
@@ -207,11 +208,11 @@ function replaceAllOccurrences(value: string, query: string, replacement: string
 }
 
 export default function App() {
-  const initialProjectStateRef = useRef<InitialProjectState>(loadInitialProjectState())
-  const [project, setProject] = useState<VNProject>(initialProjectStateRef.current.project)
+  const [initialProjectState] = useState(loadInitialProjectState)
+  const [project, setProject] = useState<VNProject>(initialProjectState.project)
   const [undoStack, setUndoStack] = useState<VNProject[]>([])
   const [redoStack, setRedoStack] = useState<VNProject[]>([])
-  const initialLineId = initialProjectStateRef.current.project.lines[0]?.id ?? null
+  const initialLineId = initialProjectState.project.lines[0]?.id ?? null
   const [activeLineId, setActiveLineId] = useState<string | null>(initialLineId)
   const [lastFocusedLineId, setLastFocusedLineId] = useState<string | null>(initialLineId)
   const [typewriterMode, setTypewriterMode] = useState(false)
@@ -226,10 +227,10 @@ export default function App() {
   const [lineClipboard, setLineClipboard] = useState<LineClipboard>({ lines: [], plainText: "" })
   const [isTextEditing, setIsTextEditing] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>(
-    initialProjectStateRef.current.restoredFromLocal ? "saved" : "idle"
+    initialProjectState.restoredFromLocal ? "saved" : "idle"
   )
   const [saveStatusText, setSaveStatusText] = useState(
-    initialProjectStateRef.current.restoredFromLocal
+    initialProjectState.restoredFromLocal
       ? "\u5df2\u6062\u590d\u672c\u5730\u9879\u76ee"
       : "\u672a\u4fdd\u5b58"
   )
@@ -247,15 +248,13 @@ export default function App() {
   const lastFocusedLineIdRef = useRef(lastFocusedLineId)
   const lineClipboardRef = useRef(lineClipboard)
   const pendingEditSnapshotRef = useRef<VNProject | null>(null)
-  const lastPersistedSnapshotRef = useRef<string | null>(
-    initialProjectStateRef.current.restoredFromLocal
-      ? JSON.stringify(initialProjectStateRef.current.project)
-      : null
-  )
+  const [initialPersistedSnapshot] = useState(() => initialProjectState.restoredFromLocal ? JSON.stringify(initialProjectState.project) : null)
+  const lastPersistedSnapshotRef = useRef<string | null>(initialPersistedSnapshot)
   const autosaveSuspendedSnapshotRef = useRef<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const activeSpeakers = useMemo(() => getActiveSpeakers(project.lines), [project.lines])
+  const scriptStructure = useMemo(() => parseScriptStructure(project.lines), [project.lines])
   const orderedActiveSpeakers = useMemo(
     () => resolveCharacterDisplayOrder(activeSpeakers, project.settings.characterOrder),
     [activeSpeakers, project.settings.characterOrder]
@@ -1229,6 +1228,9 @@ const handleInsertPlainText = ({
         return
       }
 
+      const nativeSelection = window.getSelection()
+      if (isShortcutPressed && (shortcutKey === "c" || shortcutKey === "x") && nativeSelection && !nativeSelection.isCollapsed && nativeSelection.anchorNode?.parentElement?.closest(".editor-body")) return
+
       if (isShortcutPressed && shortcutKey === "c" && lineRangeSelectionRef.current) {
         event.preventDefault()
         handleCopyRange()
@@ -1265,6 +1267,7 @@ const handleInsertPlainText = ({
   return (
     <div className={`app-shell ${isOutlineCollapsed ? "is-outline-collapsed" : ""} ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
       <Outline
+        structure={scriptStructure}
         isCollapsed={isOutlineCollapsed}
         onToggleCollapsed={() => setIsOutlineCollapsed((collapsed) => !collapsed)}
         key={`outline-${editorSession}`}
@@ -1274,6 +1277,7 @@ const handleInsertPlainText = ({
       />
 
       <Editor
+        structure={scriptStructure}
         key={`editor-${editorSession}`}
         rangeVisibilityGuard={rangeVisibilityGuard}
         lines={project.lines}

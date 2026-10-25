@@ -15,6 +15,7 @@ globalThis.ResizeObserver = class {
 function textarea(name: string, height: number) {
   return {
     isConnected: true,
+    clientWidth: 300,
     style: { set height(value: string) { operations.push(`${name}:write:${value}`) } },
     get scrollHeight() { operations.push(`${name}:read`); return height }
   } as unknown as HTMLTextAreaElement
@@ -41,6 +42,8 @@ assert.deepEqual(operations, [
 ])
 emit(300)
 assert.equal(frames.length, 0, "Height-only notifications must not trigger another measurement")
+emit(300.2)
+assert.equal(frames.length, 0, "Subpixel observer widths must match the cached client width")
 emit(200)
 assert.equal(frames.length, 1, "A width change schedules one shared update")
 stopFirst()

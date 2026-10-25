@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import type { VNProject } from "../types"
 import { buildPrintableHtml, openPrintWindow } from "../utils/exportPdfHtml"
 import { exportRenpy } from "../utils/exportRenpy"
@@ -44,6 +44,7 @@ export function ExportPanel({ project, onExportHeadingsChange }: ExportPanelProp
   const [includePdfNotes, setIncludePdfNotes] = useState(true)
   const [renpyStatus, setRenpyStatus] = useState("")
   const [pdfStatus, setPdfStatus] = useState("")
+  const structureWarnings = useMemo(() => parseScriptStructure(project.lines).issues.filter((issue) => issue.warning), [project.lines])
 
   const buildRenpyOutput = () =>
     exportRenpy(project, {
@@ -115,7 +116,7 @@ export function ExportPanel({ project, onExportHeadingsChange }: ExportPanelProp
           </button>
         </div>
 
-        <div className="export-status" style={{ whiteSpace: "pre-wrap" }}>{renpyStatus || " "}{parseScriptStructure(project.lines).issues.filter((issue) => issue.warning).map((issue) => <div key={issue.line}>第 {issue.line} 行：{issue.message}</div>)}</div>
+        <div className="export-status" style={{ whiteSpace: "pre-wrap" }}>{renpyStatus || " "}{structureWarnings.map((issue) => <div key={issue.line}>第 {issue.line} 行：{issue.message}</div>)}</div>
       </div>
 
       <div className="export-group">
