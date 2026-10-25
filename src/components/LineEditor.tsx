@@ -11,7 +11,7 @@ type LineEditorProps = {
   foldable: boolean
   collapsed: boolean
   foldSummary?: string
-  onToggleFold: () => void
+  onToggleFold: (lineId: string) => void
   speakerColor?: string
   speakerOptions: SpeakerSuggestion[]
   readingWrapChars: number
@@ -59,7 +59,6 @@ function LineEditorComponent(props: LineEditorProps) {
   } = props
   const [isSpeakerFocused, setIsSpeakerFocused] = useState(false)
   const [isContentFocused, setIsContentFocused] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false)
   const contentElementRef = useRef<HTMLTextAreaElement | null>(null)
@@ -67,9 +66,9 @@ function LineEditorComponent(props: LineEditorProps) {
   const isEndMenu = line.speaker.trim() === "#endmenu"
   const filteredSpeakerOptions = useMemo(() => {
     const query = line.speaker.trim().toLowerCase()
-    if (!query) return []
+    if (!isSpeakerFocused || !query) return []
     return speakerOptions.filter((option) => option.matchValues.some((value) => value.includes(query)))
-  }, [line.speaker, speakerOptions])
+  }, [isSpeakerFocused, line.speaker, speakerOptions])
 
   useLayoutEffect(() => { resizeTextarea(contentElementRef.current) }, [line.content, variant, readingWrapChars, editorFontSize])
   useLayoutEffect(() => {
@@ -81,7 +80,6 @@ function LineEditorComponent(props: LineEditorProps) {
   const commitSpeaker = () => { onSpeakerCommit(line.id); onEndTextEdit() }
   const applySpeakerOption = (displayName: string) => { onSpeakerChange(line.id, displayName); setIsAutocompleteOpen(false); setHighlightedIndex(0) }
   const isSpeakerHighlighted =
-    isHovered ||
     isSpeakerFocused ||
     isContentFocused ||
     (isSingleFocusRange && isActive)
@@ -89,8 +87,6 @@ function LineEditorComponent(props: LineEditorProps) {
   return (
     <div ref={containerRef} data-script-line-id={line.id}
       className={["line-editor", `line-${variant}`, isActive ? "is-active" : "", isSearchCurrent ? "is-search-current" : "", isRangeSelected ? "is-range-selected" : "", isSpeakerHighlighted ? "is-speaker-highlighted" : "", isDimmed ? "is-dimmed" : ""].filter(Boolean).join(" ")}
-      onPointerEnter={() => setIsHovered(true)}
-      onPointerLeave={() => setIsHovered(false)}
       onPointerDown={(event) => {
         const target = event.target as HTMLElement
         if (target.closest("input, textarea, button, .speaker-autocomplete")) return
@@ -103,7 +99,7 @@ function LineEditorComponent(props: LineEditorProps) {
           onPointerDown={(event) => { event.stopPropagation(); onGutterPointerDown(line.id, event) }} />
         {props.foldable ? <button type="button" className="line-fold-toggle" aria-label={props.collapsed ? "展开" : "折叠"} aria-expanded={!props.collapsed} tabIndex={-1}
           onPointerDown={(event) => { event.preventDefault(); event.stopPropagation() }}
-          onClick={(event) => { event.stopPropagation(); props.onToggleFold() }}>{props.collapsed ? "▸" : "▾"}</button> : null}
+          onClick={(event) => { event.stopPropagation(); props.onToggleFold(line.id) }}>{props.collapsed ? "▸" : "▾"}</button> : null}
       </div>
       <div className="line-speaker-cell">
         <input ref={speakerInputRef} className="line-speaker-input" type="text" value={line.speaker}

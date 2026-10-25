@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { CharacterMap, ScriptLine } from "../types"
 import type { LineRangeSelection } from "../utils/lineOperations"
 import { isCharacterSpeakerName } from "../utils/lineTypes"
@@ -59,6 +59,23 @@ export function Editor(props: EditorProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [foldNotice, setFoldNotice] = useState("")
   const structure = useMemo(() => parseScriptStructure(lines), [lines])
+  const foldableBlocks = useMemo(() => new Map(structure.blocks.filter((block) => block.complete && block.end > block.start).map((block) => [block.id, block])), [structure])
+  const toggleFoldRef = useRef<(lineId: string) => void>(() => {})
+  toggleFoldRef.current = (lineId) => {
+    if (!foldableBlocks.has(lineId)) return
+    if (!collapsed.has(lineId)) {
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      onBlankLineClick(lineId)
+    }
+    setFoldNotice("")
+    setCollapsed((previous) => {
+      const next = new Set(previous)
+      if (next.has(lineId)) next.delete(lineId)
+      else next.add(lineId)
+      return next
+    })
+  }
+  const handleToggleFold = useCallback((lineId: string) => toggleFoldRef.current(lineId), [])
   const hidden = useMemo(() => hiddenLineIds(lines, structure.blocks, collapsed), [lines, structure, collapsed])
   const reveal = (lineId: string) => {
     const index = lines.findIndex((line) => line.id === lineId)
@@ -173,7 +190,7 @@ export function Editor(props: EditorProps) {
       <div className="editor-scroll-area"><div className="editor-list editor-body" style={{ "--reading-wrap-width": `${readingWrapChars}em`, "--editor-font-size": `${editorFontSize}px` } as CSSProperties}>
         {lines.map((line) => {
           if (hidden.has(line.id)) return null
-          const block = structure.blocks.find((block) => block.id === line.id && block.complete && block.end > block.start)
+          const block = foldableBlocks.get(line.id)
           const normalizedSpeaker = line.speaker.trim()
           const profile = characters[normalizedSpeaker]
           const speakerColor = isCharacterSpeakerName(normalizedSpeaker) ? resolveCharacterColor(profile?.color ?? DEFAULT_CHARACTER_COLOR) : undefined
@@ -188,15 +205,7 @@ export function Editor(props: EditorProps) {
             isSingleFocusRange={isSingleFocusRange}
             foldable={Boolean(block)} collapsed={collapsed.has(line.id)}
             foldSummary={block?.kind === "menu" && collapsed.has(line.id) ? `${block.options.length} 个选项` : undefined}
-            onToggleFold={() => {
-              if (!block) return
-              if (!collapsed.has(line.id)) {
-                ;(document.activeElement as HTMLElement | null)?.blur()
-                onBlankLineClick(line.id)
-              }
-              setFoldNotice("")
-              setCollapsed((previous) => { const next = new Set(previous); if (next.has(line.id)) next.delete(line.id); else next.add(line.id); return next })
-            }}
+            onToggleFold={handleToggleFold}
             onInsertBelow={onInsertLineBelow}
             onSwitchTextField={handleSwitchTextField}
             containerRef={(element) => { lineRefs.current[line.id] = element }}
