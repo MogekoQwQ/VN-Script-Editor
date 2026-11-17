@@ -248,7 +248,7 @@ export function Editor(props: EditorProps) {
   return (
     <main className={`panel panel-editor ${isRangeDragging ? "is-range-dragging" : ""}`.trim()}>
       <div className="panel-header"><h2>{"\u811a\u672c\u7f16\u8f91\u533a"}</h2></div>
-      {!isTextEditing ? <BatchToolbar focusedCount={lineIdsInRange.size} onCopy={onCopyRange} onCut={onCutRange} onPasteBelow={onPasteRange} onDelete={onDeleteRange} /> : null}
+      <BatchToolbar hidden={isTextEditing} focusedCount={lineIdsInRange.size} onCopy={onCopyRange} onCut={onCutRange} onPasteBelow={onPasteRange} onDelete={onDeleteRange} />
       {foldNotice ? <div role="status">{foldNotice}</div> : null}
       <div className="editor-column-labels"><span className="editor-select-label" /><span>{"\u8bf4\u8bdd\u4eba"}</span><span>{"\u5185\u5bb9"}</span></div>
       <div className="editor-scroll-area" ref={scrollElementRef} onWheel={() => virtualizer.cancelScroll()} onTouchStart={() => virtualizer.cancelScroll()} onPointerDownCapture={() => virtualizer.cancelScroll()}><div className="editor-list editor-body" ref={paperRef} style={{ "--reading-wrap-width": `${readingWrapChars}em`, "--editor-font-size": `${editorFontSize}px` } as CSSProperties}>

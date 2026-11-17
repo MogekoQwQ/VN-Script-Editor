@@ -51,4 +51,13 @@ stopSecond()
 operations.length = 0
 flush()
 assert.equal(operations.length, 0, "Unmounted rows are removed from queued updates")
+const editing = textarea("editing", 160)
+Object.assign(editing, { offsetHeight: 2, clientHeight: 0 })
+resizeTextarea(editing, true)
+assert.deepEqual(operations, ["editing:write:0px", "editing:read", "editing:write:162px"], "Entering edit mode measures before paint and includes borders")
+operations.length = 0
+resizeTextarea(editing)
+resizeTextarea(editing, true)
+flush()
+assert.deepEqual(operations, ["editing:write:0px", "editing:read", "editing:write:162px"], "Synchronous resizing replaces a queued resize rather than collapsing the editor again")
 console.log("Textarea batching, width-only observation and unmount cleanup passed.")

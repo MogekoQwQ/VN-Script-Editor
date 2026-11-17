@@ -444,7 +444,7 @@ code {
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  box-sizing: content-box;
+  box-sizing: border-box;
   padding-left: 0;
   padding-right: 0;
   white-space: pre-wrap;
@@ -457,7 +457,7 @@ code {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
   padding-left: 0;
   padding-right: 0;
   white-space: pre-wrap;
@@ -471,6 +471,7 @@ code {
   display: block;
   resize: none;
   overflow-y: hidden;
+  overflow-x: hidden;
   border: none;
   background: transparent;
   margin: 0;

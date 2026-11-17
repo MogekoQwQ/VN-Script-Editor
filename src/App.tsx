@@ -6,7 +6,7 @@ import { RightPanel } from "./components/RightPanel"
 import type { PlainTextInsertMode } from "./components/PlainTextInsertPanel"
 import { defaultProject } from "./data/defaultProject"
 import type { CharacterMap, CharacterProfile, ScriptLine, VNProject } from "./types"
-import { areProjectsEqual, cloneProject, pushHistorySnapshot } from "./utils/history"
+import { areProjectsEqual, cloneProject, pushHistorySnapshot, resolveHistoryFocus } from "./utils/history"
 import { createLineId } from "./utils/ids"
 import {
   pasteClipboardLines,
@@ -248,6 +248,9 @@ export default function App() {
   const lastFocusedLineIdRef = useRef(lastFocusedLineId)
   const lineClipboardRef = useRef(lineClipboard)
   const pendingEditSnapshotRef = useRef<VNProject | null>(null)
+  // Focus belongs to history UI state, never to the saved project file.
+  const historyFocusRef = useRef(new WeakMap<VNProject, LineRangeSelection>())
+  const previousFocusProjectRef = useRef(project)
   const [initialPersistedSnapshot] = useState(() => initialProjectState.restoredFromLocal ? JSON.stringify(initialProjectState.project) : null)
   const lastPersistedSnapshotRef = useRef<string | null>(initialPersistedSnapshot)
   const autosaveSuspendedSnapshotRef = useRef<string | null>(null)
@@ -305,8 +308,9 @@ export default function App() {
     const fallbackLineId =
       (activeLineId && lineIds.has(activeLineId) ? activeLineId : null) ??
       (lastFocusedLineId && lineIds.has(lastFocusedLineId) ? lastFocusedLineId : null) ??
-      project.lines[0]?.id ??
+      resolveHistoryFocus(project, previousFocusProjectRef.current, activeLineId ?? lastFocusedLineId)?.focusLineId ??
       null
+    previousFocusProjectRef.current = project
 
     if (
       fallbackLineId &&
@@ -399,7 +403,7 @@ export default function App() {
 
   const beginProjectEdit = () => {
     if (!pendingEditSnapshotRef.current) {
-      pendingEditSnapshotRef.current = cloneProject(projectRef.current)
+      pendingEditSnapshotRef.current = createHistorySnapshot()
     }
   }
 
@@ -421,7 +425,7 @@ export default function App() {
   }
 
   const commitProject = (nextProject: VNProject, previousSnapshot?: VNProject) => {
-    const beforeChange = previousSnapshot ?? cloneProject(projectRef.current)
+    const beforeChange = previousSnapshot ?? createHistorySnapshot()
 
     if (areProjectsEqual(beforeChange, nextProject)) {
       return
@@ -442,7 +446,7 @@ export default function App() {
 
   const commitProjectUpdate = (updater: (currentProject: VNProject) => VNProject) => {
     finalizePendingEdit()
-    const beforeChange = cloneProject(projectRef.current)
+    const beforeChange = createHistorySnapshot()
     const nextProject = updater(projectRef.current)
     commitProject(nextProject, beforeChange)
   }
@@ -1142,18 +1146,47 @@ const handleInsertPlainText = ({
     syncSearchAfterProjectChange(`已替换 ${replacedCount} 处匹配`)
   }
 
+  function createHistorySnapshot() {
+    const snapshot = cloneProject(projectRef.current)
+    const editingLineId = document.activeElement?.matches(".line-speaker-input, .line-content-textarea")
+      ? document.activeElement.closest<HTMLElement>("[data-script-line-id]")?.dataset.scriptLineId
+      : null
+    const range = editingLineId ? { anchorLineId: editingLineId, focusLineId: editingLineId } : lineRangeSelectionRef.current
+    if (range) historyFocusRef.current.set(snapshot, { ...range })
+    return snapshot
+  }
+
+  const restoreHistoryProject = (snapshot: VNProject) => {
+    const savedRange = historyFocusRef.current.get(snapshot)
+    const currentId = activeLineIdRef.current
+    const range = resolveHistoryFocus(snapshot, projectRef.current, currentId, savedRange)
+    setProjectDirect(snapshot)
+    if (!range) return
+    const focusId = range.focusLineId
+    setActiveLineId(focusId)
+    setLastFocusedLineId(focusId)
+    setLineRangeSelection(range)
+    if (focusId !== currentId) {
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      setIsTextEditing(false)
+      setFocusRequest(null)
+      requestScroll(focusId)
+    }
+  }
+
   const performUndo = () => {
     const pendingSnapshot = pendingEditSnapshotRef.current
 
     if (pendingSnapshot && !areProjectsEqual(pendingSnapshot, projectRef.current)) {
       setRedoHistory(
-        pushHistorySnapshot(redoStackRef.current, cloneProject(projectRef.current))
+        pushHistorySnapshot(redoStackRef.current, createHistorySnapshot())
       )
       pendingEditSnapshotRef.current = null
-      setProjectDirect(pendingSnapshot)
+      restoreHistoryProject(pendingSnapshot)
       return
     }
 
+    pendingEditSnapshotRef.current = null
     if (undoStackRef.current.length === 0) {
       return
     }
@@ -1166,11 +1199,15 @@ const handleInsertPlainText = ({
     }
 
     setUndoHistory(nextUndoStack)
-    setRedoHistory(pushHistorySnapshot(redoStackRef.current, cloneProject(projectRef.current)))
-    setProjectDirect(previousProject)
+    setRedoHistory(pushHistorySnapshot(redoStackRef.current, createHistorySnapshot()))
+    restoreHistoryProject(previousProject)
   }
 
   const performRedo = () => {
+    if (pendingEditSnapshotRef.current && !areProjectsEqual(pendingEditSnapshotRef.current, projectRef.current)) {
+      finalizePendingEdit()
+      return
+    }
     if (redoStackRef.current.length === 0) {
       return
     }
@@ -1183,9 +1220,9 @@ const handleInsertPlainText = ({
     }
 
     setRedoHistory(nextRedoStack)
-    setUndoHistory(pushHistorySnapshot(undoStackRef.current, cloneProject(projectRef.current)))
+    setUndoHistory(pushHistorySnapshot(undoStackRef.current, createHistorySnapshot()))
     pendingEditSnapshotRef.current = null
-    setProjectDirect(nextProject)
+    restoreHistoryProject(nextProject)
   }
 
   useEffect(() => {

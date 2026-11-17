@@ -79,7 +79,7 @@ function LineEditorComponent(props: LineEditorProps) {
     return speakerOptions.filter((option) => option.matchValues.some((value) => value.includes(query)))
   }, [isSpeakerFocused, line.speaker, speakerOptions])
 
-  useLayoutEffect(() => { resizeTextarea(contentElementRef.current) }, [line.content, variant, readingWrapChars, editorFontSize, editingField])
+  useLayoutEffect(() => { resizeTextarea(contentElementRef.current, true) }, [line.content, variant, readingWrapChars, editorFontSize, editingField])
   useLayoutEffect(() => {
     const element = contentElementRef.current
     if (!element) return
@@ -87,7 +87,7 @@ function LineEditorComponent(props: LineEditorProps) {
   }, [editingField])
 
   const commitSpeaker = () => { onSpeakerCommit(line.id); onEndTextEdit() }
-  const applySpeakerOption = (displayName: string) => { onSpeakerChange(line.id, displayName); setIsAutocompleteOpen(false); setHighlightedIndex(0) }
+  const applySpeakerOption = (displayName: string) => { onBeginTextEdit(); onSpeakerChange(line.id, displayName); setIsAutocompleteOpen(false); setHighlightedIndex(0) }
   const requestEdit = (event: React.MouseEvent<HTMLElement>, field: FocusField, value: string) => {
     event.stopPropagation()
     const selection = window.getSelection()
@@ -115,7 +115,7 @@ function LineEditorComponent(props: LineEditorProps) {
         {editingField === "speaker" ? <input ref={speakerInputRef} className="line-speaker-input" type="text" value={line.speaker} aria-label="说话人"
           placeholder={isSpeakerFocused ? "\u8bf4\u8bdd\u4eba / # / #1 / #4" : ""} style={speakerColor ? { color: speakerColor } : undefined}
           onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) => { onSpeakerChange(line.id, event.target.value); setIsAutocompleteOpen(event.target.value.trim() !== ""); setHighlightedIndex(0) }}
+          onChange={(event) => { onBeginTextEdit(); onSpeakerChange(line.id, event.target.value); setIsAutocompleteOpen(event.target.value.trim() !== ""); setHighlightedIndex(0) }}
           onFocus={() => { setIsSpeakerFocused(true); setIsAutocompleteOpen(line.speaker.trim() !== ""); onBeginTextEdit(); onTextEditFocus(line.id) }}
           onBlur={() => { setIsSpeakerFocused(false); setIsAutocompleteOpen(false); commitSpeaker() }}
           onKeyDown={(event) => {
@@ -137,7 +137,7 @@ function LineEditorComponent(props: LineEditorProps) {
         {props.foldSummary ? <span className="fold-summary">（{props.foldSummary}）</span> : null}
         {editingField === "content" && !isEndMenu ? <textarea ref={(element) => { contentElementRef.current = element; assignRef(contentInputRef, element) }} className="line-content-textarea line-content-field" value={line.content} rows={1} wrap="soft" aria-label="脚本内容" placeholder="输入脚本内容"
           onPointerDown={(event) => event.stopPropagation()}
-          onChange={(event) => { onContentChange(line.id, event.target.value); resizeTextarea(event.target) }}
+          onChange={(event) => { onBeginTextEdit(); onContentChange(line.id, event.target.value); resizeTextarea(event.target) }}
           onFocus={() => { onBeginTextEdit(); onTextEditFocus(line.id) }} onBlur={onEndTextEdit}
           onKeyDown={(event) => {
             if (event.key === "Tab") { event.preventDefault(); onSwitchTextField(line.id, "content"); return }

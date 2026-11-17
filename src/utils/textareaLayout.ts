@@ -3,8 +3,15 @@ const widths = new WeakMap<HTMLTextAreaElement, number>()
 let frame: number | null = null
 let observer: ResizeObserver | null = null
 
-export function resizeTextarea(element: HTMLTextAreaElement | null) {
+export function resizeTextarea(element: HTMLTextAreaElement | null, immediate = false) {
   if (!element) return
+  if (immediate) {
+    pending.delete(element)
+    element.style.height = "0px"
+    element.style.height = `${element.scrollHeight + Math.max(0, (element.offsetHeight ?? 0) - (element.clientHeight ?? 0))}px`
+    widths.set(element, element.clientWidth)
+    return
+  }
   queueResize(element)
 }
 
@@ -17,7 +24,7 @@ function queueResize(element: HTMLTextAreaElement) {
     pending.clear()
     // Batch writes and reads so resizing many rows only measures layout once.
     elements.forEach((item) => { item.style.height = "0px" })
-    const heights = elements.map((item) => item.scrollHeight)
+    const heights = elements.map((item) => item.scrollHeight + Math.max(0, (item.offsetHeight ?? 0) - (item.clientHeight ?? 0)))
     elements.forEach((item) => widths.set(item, item.clientWidth))
     elements.forEach((item, index) => { item.style.height = `${heights[index]}px` })
   })

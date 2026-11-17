@@ -1,4 +1,5 @@
 type BatchToolbarProps = {
+  hidden?: boolean
   focusedCount: number
   onCopy: () => void
   onCut: () => void
@@ -6,11 +7,9 @@ type BatchToolbarProps = {
   onDelete: () => void
 }
 
-export function BatchToolbar({ focusedCount, onCopy, onCut, onPasteBelow, onDelete }: BatchToolbarProps) {
-  if (focusedCount === 0) return null
-
+export function BatchToolbar({ hidden, focusedCount, onCopy, onCut, onPasteBelow, onDelete }: BatchToolbarProps) {
   return (
-    <div className="batch-toolbar" onPointerDown={(event) => event.preventDefault()}>
+    <div className="batch-toolbar" style={{ visibility: hidden || focusedCount === 0 ? "hidden" : "visible" }} aria-hidden={hidden || focusedCount === 0} onPointerDown={(event) => event.preventDefault()}>
       <span>
         {focusedCount === 1 ? "\u5f53\u524d\u884c" : `\u5df2\u9009\u4e2d ${focusedCount} \u884c`}
       </span>
